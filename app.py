@@ -1680,9 +1680,6 @@ def create_download_button(pdf_bytes, filename):
 # ============================================================================
 # 7. MAIN APPLICATION
 # ============================================================================
-# ============================================================================
-# 7. MAIN APPLICATION
-# ============================================================================
 
 def main():
     """Main application function"""
@@ -1779,8 +1776,10 @@ def main():
                 st.session_state.current_section = len(sections) - 1
                 st.rerun()
     
-    # Main content area - Navigation buttons at top
+    # Main content area - First show the navigation buttons clearly
     st.markdown("---")
+    
+    # Create a clear navigation header
     col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
     
     with col1:
@@ -1789,6 +1788,7 @@ def main():
                 st.session_state.current_section -= 1
                 st.rerun()
         else:
+            # Show disabled button when at first section
             st.button("⬅ Previous", disabled=True, use_container_width=True)
     
     with col2:
@@ -1800,7 +1800,13 @@ def main():
             st.button("⏭️ Skip", disabled=True, use_container_width=True)
     
     with col3:
-        st.markdown(f"**Section {st.session_state.current_section + 1} of {len(sections)}**", help=f"Current: {current_section_name}")
+        # Show current section indicator
+        st.markdown(f"""
+        <div style="text-align: center; padding: 10px; background-color: #f0f2f6; border-radius: 5px;">
+            <strong>Step {st.session_state.current_section + 1} of {len(sections)}</strong><br>
+            <small>{current_section_name}</small>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col4:
         if st.session_state.current_section < len(sections) - 1:
@@ -1844,10 +1850,8 @@ def main():
                 
                 st.session_state.current_section = len(sections) - 1
                 st.rerun()
-        elif st.session_state.current_section == len(sections) - 1:
-            if st.button("📊 Run Analysis", use_container_width=True, type="primary"):
-                # This button is handled in the analysis section below
-                pass
+    
+    st.markdown("---")
     
     # Display current section content
     current_section_name, section_function = sections[st.session_state.current_section]
@@ -1893,7 +1897,7 @@ def main():
             
             # Navigation buttons to go back
             st.markdown("---")
-            col1, col2, col3 = st.columns([1, 2, 1])
+            col1, col2, col3 = st.columns(3)
             with col2:
                 if st.button("⬅ Go Back to Previous Section", use_container_width=True):
                     st.session_state.current_section -= 1
@@ -1915,7 +1919,7 @@ def main():
         After analysis, you can download a detailed PDF report.
         """)
         
-        col1, col2, col3 = st.columns([1, 2, 1])
+        col1, col2, col3 = st.columns(3)
         with col2:
             if not st.session_state.analysis_done:
                 if st.button("🚀 Run Financial Analysis", use_container_width=True, type="primary", help="Click to analyze your financial data"):
@@ -1949,7 +1953,7 @@ def main():
             st.markdown("### 📄 Download Report")
             st.markdown("Generate a professional PDF report with all your financial analysis and recommendations.")
             
-            col1, col2, col3 = st.columns([1, 2, 1])
+            col1, col2, col3 = st.columns(3)
             with col2:
                 if st.button("Generate PDF Report", use_container_width=True, type="secondary"):
                     with st.spinner("📄 Generating PDF report..."):
@@ -1969,34 +1973,36 @@ def main():
                         
                         st.success("✅ PDF report generated! Click the download button above.")
     
-    # Navigation buttons at bottom (only for non-analysis sections)
+    # Add bottom navigation for all sections except Analysis
     if current_section_name != "Analysis & Report":
         st.markdown("---")
+        
+        # Bottom navigation
         col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
         
         with col1:
             if st.session_state.current_section > 0:
-                if st.button("⬅ Previous Section", use_container_width=True, key="bottom_prev"):
+                if st.button("⬅ Back", use_container_width=True, key="bottom_back"):
                     st.session_state.current_section -= 1
                     st.rerun()
             else:
-                st.button("⬅ Previous Section", disabled=True, use_container_width=True, key="bottom_prev_disabled")
+                st.button("⬅ Back", disabled=True, use_container_width=True, key="bottom_back_disabled")
         
         with col2:
             if st.session_state.current_section < len(sections) - 2:
-                if st.button("⏭️ Skip Section", use_container_width=True, key="bottom_skip"):
+                if st.button("Skip ⏭️", use_container_width=True, key="bottom_skip"):
                     st.session_state.current_section += 1
                     st.rerun()
             else:
-                st.button("⏭️ Skip Section", disabled=True, use_container_width=True, key="bottom_skip_disabled")
+                st.button("Skip ⏭️", disabled=True, use_container_width=True, key="bottom_skip_disabled")
         
         with col3:
-            # Section counter at bottom
-            st.markdown(f"**Step {st.session_state.current_section + 1}/{len(sections)}**")
+            # Simple section indicator
+            st.markdown(f"**{current_section_name}**", help="Current section")
         
         with col4:
             if st.session_state.current_section < len(sections) - 1:
-                if st.button("Next Section ➡", use_container_width=True, type="primary", key="bottom_next"):
+                if st.button("Continue ➡", use_container_width=True, type="primary", key="bottom_continue"):
                     # Validate current section before moving forward
                     current_section_name = sections[st.session_state.current_section][0]
                     
@@ -2019,11 +2025,11 @@ def main():
                     st.session_state.current_section += 1
                     st.rerun()
             else:
-                st.button("Next Section ➡", disabled=True, use_container_width=True, key="bottom_next_disabled")
+                st.button("Continue ➡", disabled=True, use_container_width=True, key="bottom_continue_disabled")
         
         with col5:
             if st.session_state.current_section == len(sections) - 2:  # Second last section (Goals)
-                if st.button("Go to Analysis ➡➡", use_container_width=True, type="secondary", key="bottom_analysis"):
+                if st.button("Analyze ➡➡", use_container_width=True, type="secondary", key="bottom_analyze"):
                     # Check if all required sections are filled
                     required = ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data', 'goals']
                     missing = [section for section in required if section not in st.session_state]
@@ -2036,7 +2042,7 @@ def main():
                     st.session_state.current_section = len(sections) - 1
                     st.rerun()
     
-    # Add a "Start Over" button at the very bottom for all sections
+    # Add a "Start Over" button at the very bottom
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
