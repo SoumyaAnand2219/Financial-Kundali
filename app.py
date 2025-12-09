@@ -99,6 +99,25 @@ st.markdown("""
     .download-btn:hover {
         background-color: #27ae60 !important;
     }
+    .nav-btn {
+        background-color: #3498db;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-weight: bold;
+        border: none;
+        cursor: pointer;
+        margin: 5px;
+    }
+    .nav-btn:hover {
+        background-color: #2980b9;
+    }
+    .nav-btn-secondary {
+        background-color: #95a5a6;
+    }
+    .nav-btn-secondary:hover {
+        background-color: #7f8c8d;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1673,17 +1692,43 @@ def main():
         st.session_state.analysis_done = False
     if 'analysis_results' not in st.session_state:
         st.session_state.analysis_results = None
+    if 'current_section' not in st.session_state:
+        st.session_state.current_section = 0
+    
+    # Define sections
+    sections = [
+        ("Personal Info", create_personal_info_section),
+        ("Income & Expenses", create_income_expenses_section),
+        ("Assets", create_assets_section),
+        ("Debts", create_debts_section),
+        ("Insurance", create_insurance_section),
+        ("Goals", create_goals_section),
+        ("Analysis & Report", None)  # Special case for analysis section
+    ]
     
     # Create sidebar for navigation
     with st.sidebar:
         st.image("https://img.icons8.com/color/96/000000/money-bag.png", width=100)
         st.title("Navigation")
         
-        section = st.radio(
-            "Go to:",
-            ["Personal Info", "Income & Expenses", "Assets", "Debts", "Insurance", "Goals", "Analysis & Report"],
-            index=0
-        )
+        # Display current section
+        current_section_name = sections[st.session_state.current_section][0]
+        st.markdown(f"### Current Section: {current_section_name}")
+        
+        # Progress bar
+        progress = (st.session_state.current_section + 1) / len(sections)
+        st.progress(progress)
+        st.caption(f"Progress: {int(progress * 100)}% complete")
+        
+        # Section indicators
+        st.markdown("### Sections:")
+        for i, (section_name, _) in enumerate(sections):
+            if i == st.session_state.current_section:
+                st.markdown(f"▶ **{section_name}**")
+            elif i < st.session_state.current_section:
+                st.markdown(f"✓ {section_name}")
+            else:
+                st.markdown(f"○ {section_name}")
         
         st.divider()
         
@@ -1708,73 +1753,107 @@ def main():
         - Consider inflation for long-term goals
         """)
     
-    # Main content area
-    if section == "Personal Info":
-        personal_info = create_personal_info_section()
-        st.session_state.personal_info = personal_info
+    # Main content area - Navigation buttons at top
+    col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
+    
+    with col1:
+        if st.session_state.current_section > 0:
+            if st.button("⬅ Previous", use_container_width=True):
+                st.session_state.current_section -= 1
+                st.rerun()
+    
+    with col2:
+        if st.session_state.current_section < len(sections) - 2:
+            if st.button("Skip Section", use_container_width=True):
+                st.session_state.current_section += 1
+                st.rerun()
+    
+    with col4:
+        if st.session_state.current_section < len(sections) - 1:
+            if st.button("Next ➡", use_container_width=True, type="primary"):
+                # Validate current section before moving forward
+                current_section_name = sections[st.session_state.current_section][0]
+                
+                # Check if required previous sections are filled
+                if current_section_name == "Income & Expenses" and 'personal_info' not in st.session_state:
+                    st.error("Please fill Personal Information first!")
+                    st.stop()
+                elif current_section_name == "Assets" and 'income_data' not in st.session_state:
+                    st.error("Please fill Income & Expenses first!")
+                    st.stop()
+                elif current_section_name == "Debts" and 'assets_data' not in st.session_state:
+                    st.error("Please fill Assets section first!")
+                    st.stop()
+                elif current_section_name == "Insurance" and 'debts' not in st.session_state:
+                    st.error("Please fill Debts section first!")
+                    st.stop()
+                elif current_section_name == "Goals" and 'insurance_data' not in st.session_state:
+                    st.error("Please fill Insurance section first!")
+                    st.stop()
+                
+                st.session_state.current_section += 1
+                st.rerun()
+    
+    with col5:
+        if st.session_state.current_section == len(sections) - 2:  # Second last section (Goals)
+            if st.button("Go to Analysis ➡➡", use_container_width=True, type="secondary"):
+                st.session_state.current_section = len(sections) - 1
+                st.rerun()
+    
+    # Display current section content
+    current_section_name, section_function = sections[st.session_state.current_section]
+    
+    # Add section header
+    st.markdown(f'<h2 class="section-header">{current_section_name}</h2>', unsafe_allow_html=True)
+    
+    if section_function:
+        # Call the section function and store results
+        result = section_function()
         
-    elif section == "Income & Expenses":
-        if 'personal_info' not in st.session_state:
-            st.warning("Please fill Personal Information first!")
-            st.stop()
-        income_data = create_income_expenses_section()
-        st.session_state.income_data = income_data
-        
-    elif section == "Assets":
-        if 'income_data' not in st.session_state:
-            st.warning("Please fill Income & Expenses first!")
-            st.stop()
-        assets_data = create_assets_section()
-        st.session_state.assets_data = assets_data
-        
-    elif section == "Debts":
-        if 'assets_data' not in st.session_state:
-            st.warning("Please fill Assets section first!")
-            st.stop()
-        debts = create_debts_section()
-        st.session_state.debts = debts
-        
-    elif section == "Insurance":
-        if 'debts' not in st.session_state:
-            st.warning("Please fill Debts section first!")
-            st.stop()
-        insurance_data = create_insurance_section()
-        st.session_state.insurance_data = insurance_data
-        
-    elif section == "Goals":
-        if 'insurance_data' not in st.session_state:
-            st.warning("Please fill Insurance section first!")
-            st.stop()
-        goals = create_goals_section()
-        st.session_state.goals = goals
-        
-    elif section == "Analysis & Report":
+        if current_section_name == "Personal Info":
+            st.session_state.personal_info = result
+        elif current_section_name == "Income & Expenses":
+            st.session_state.income_data = result
+        elif current_section_name == "Assets":
+            st.session_state.assets_data = result
+        elif current_section_name == "Debts":
+            st.session_state.debts = result
+        elif current_section_name == "Insurance":
+            st.session_state.insurance_data = result
+        elif current_section_name == "Goals":
+            st.session_state.goals = result
+    
+    # Special handling for Analysis & Report section
+    elif current_section_name == "Analysis & Report":
         # Check if all data is available
         required_sections = ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data', 'goals']
         missing = [section for section in required_sections if section not in st.session_state]
         
         if missing:
             st.error(f"Please complete the following sections first: {', '.join(missing)}")
+            
+            # Navigation buttons at bottom for going back
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col1:
+                if st.button("⬅ Go Back to Previous Section", use_container_width=True):
+                    st.session_state.current_section -= 1
+                    st.rerun()
             st.stop()
         
-        st.markdown('<h2 class="section-header">📈 Run Analysis & Generate Report</h2>', unsafe_allow_html=True)
+        st.markdown("### Ready to Analyze Your Finances?")
+        st.markdown("""
+        Click the button below to run a comprehensive analysis of your financial situation.
+        The analysis will cover:
+        - Emergency fund adequacy
+        - Retirement readiness
+        - Debt burden analysis
+        - Financial goals progress
+        - Personalized recommendations
         
-        col1, col2 = st.columns([3, 1])
+        After analysis, you can download a detailed PDF report.
+        """)
         
-        with col1:
-            st.markdown("### Ready to Analyze Your Finances?")
-            st.markdown("""
-            Click the button below to run a comprehensive analysis of your financial situation.
-            The analysis will cover:
-            - Emergency fund adequacy
-            - Retirement readiness
-            - Debt burden analysis
-            - Financial goals progress
-            - Personalized recommendations
-            
-            After analysis, you can download a detailed PDF report.
-            """)
-        
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             if st.button("🚀 Run Financial Analysis", use_container_width=True, type="primary"):
                 with st.spinner("Analyzing your finances..."):
@@ -1803,36 +1882,84 @@ def main():
             st.markdown("---")
             st.markdown("### 📄 Download Report")
             
-            if st.button("Generate PDF Report", use_container_width=True):
-                with st.spinner("Generating PDF report..."):
-                    pdf_bytes = create_pdf_report(
-                        st.session_state.personal_info,
-                        st.session_state.income_data,
-                        st.session_state.assets_data,
-                        st.session_state.debts,
-                        st.session_state.insurance_data,
-                        st.session_state.goals,
-                        st.session_state.analysis_results
-                    )
-                    
-                    # Create download button
-                    filename = f"Financial_Plan_{st.session_state.personal_info['name'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-                    create_download_button(pdf_bytes, filename)
-                    
-                    st.success("PDF report generated! Click the download button above.")
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("Generate PDF Report", use_container_width=True):
+                    with st.spinner("Generating PDF report..."):
+                        pdf_bytes = create_pdf_report(
+                            st.session_state.personal_info,
+                            st.session_state.income_data,
+                            st.session_state.assets_data,
+                            st.session_state.debts,
+                            st.session_state.insurance_data,
+                            st.session_state.goals,
+                            st.session_state.analysis_results
+                        )
+                        
+                        # Create download button
+                        filename = f"Financial_Plan_{st.session_state.personal_info['name'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                        create_download_button(pdf_bytes, filename)
+                        
+                        st.success("PDF report generated! Click the download button above.")
     
-    # Progress indicator at bottom
-    if section != "Analysis & Report":
+    # Navigation buttons at bottom
+    if current_section_name != "Analysis & Report":
         st.markdown("---")
+        col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
         
-        sections = ["Personal Info", "Income & Expenses", "Assets", "Debts", "Insurance", "Goals", "Analysis & Report"]
-        current_index = sections.index(section)
+        with col1:
+            if st.session_state.current_section > 0:
+                if st.button("⬅ Previous Section", use_container_width=True, key="bottom_prev"):
+                    st.session_state.current_section -= 1
+                    st.rerun()
         
-        # Calculate progress
-        progress = (current_index + 1) / len(sections)
+        with col3:
+            if st.session_state.current_section < len(sections) - 2:
+                if st.button("Skip This Section", use_container_width=True, key="bottom_skip"):
+                    st.session_state.current_section += 1
+                    st.rerun()
         
-        st.progress(progress)
-        st.caption(f"Progress: {int(progress * 100)}% complete")
+        with col4:
+            if st.session_state.current_section < len(sections) - 1:
+                if st.button("Next Section ➡", use_container_width=True, type="primary", key="bottom_next"):
+                    # Validate current section before moving forward
+                    current_section_name = sections[st.session_state.current_section][0]
+                    
+                    # Check if required previous sections are filled
+                    if current_section_name == "Income & Expenses" and 'personal_info' not in st.session_state:
+                        st.error("Please fill Personal Information first!")
+                        st.stop()
+                    elif current_section_name == "Assets" and 'income_data' not in st.session_state:
+                        st.error("Please fill Income & Expenses first!")
+                        st.stop()
+                    elif current_section_name == "Debts" and 'assets_data' not in st.session_state:
+                        st.error("Please fill Assets section first!")
+                        st.stop()
+                    elif current_section_name == "Insurance" and 'debts' not in st.session_state:
+                        st.error("Please fill Debts section first!")
+                        st.stop()
+                    elif current_section_name == "Goals" and 'insurance_data' not in st.session_state:
+                        st.error("Please fill Insurance section first!")
+                        st.stop()
+                    
+                    st.session_state.current_section += 1
+                    st.rerun()
+        
+        with col5:
+            if st.session_state.current_section == len(sections) - 2:  # Second last section (Goals)
+                if st.button("Go to Analysis ➡➡", use_container_width=True, type="secondary", key="bottom_analysis"):
+                    st.session_state.current_section = len(sections) - 1
+                    st.rerun()
+    
+    # Add a "Start Over" button at the very bottom
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("🔄 Start Over", use_container_width=True, type="secondary"):
+            # Clear all session state
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
 
 # ============================================================================
 # 8. RUN THE APPLICATION
