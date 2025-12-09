@@ -25,6 +25,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 import base64
+
 # ============================================================================
 # 1. PAGE CONFIGURATION
 # ============================================================================
@@ -460,6 +461,110 @@ class DebtAnalyzer:
             "debts_details": debts
         }
 
+class GoalAnalyzer:
+    def __init__(self, constants: FinancialConstants):
+        self.constants = constants
+        self.calculator = FinancialCalculator()
+    
+    def analyze(
+        self,
+        goals: List[Dict],
+        age: int,
+        current_investment_rate: float = 0.10
+    ) -> Dict[str, Any]:
+        """Analyze financial goals"""
+        
+        if not goals:
+            return {
+                "total_goals": 0,
+                "total_target_amount_pv": 0,
+                "total_target_amount_fv": 0,
+                "monthly_investment_needed": 0,
+                "goals_details": [],
+                "priority_summary": {}
+            }
+        
+        goals_analysis = []
+        total_monthly_investment_needed = 0
+        total_target_amount_pv = 0
+        total_target_amount_fv = 0
+        priority_summary = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        
+        for goal in goals:
+            goal_name = goal.get("name", "Unnamed Goal")
+            target_amount = goal.get("target_amount", 0)
+            timeframe_years = goal.get("timeframe_years", 0)
+            priority = goal.get("priority", "medium")
+            current_saved = goal.get("current_saved", 0)
+            
+            # Target amount is in TODAY'S VALUE (PV)
+            # Calculate Future Value considering inflation
+            inflated_target_amount = self.calculator.inflation_adjusted_value(
+                target_amount, self.constants.INFLATION_RATE, timeframe_years
+            )
+            
+            total_target_amount_pv += target_amount
+            total_target_amount_fv += inflated_target_amount
+            
+            # Calculate monthly saving needed
+            monthly_saving_needed = self.calculator.monthly_saving_for_goal(
+                target_amount=inflated_target_amount,
+                years=timeframe_years,
+                expected_return=current_investment_rate,
+                current_saved=current_saved
+            )
+            
+            total_monthly_investment_needed += monthly_saving_needed
+            
+            # Track priority
+            if priority in priority_summary:
+                priority_summary[priority] += 1
+            
+            # Calculate progress
+            progress_percentage = (current_saved / target_amount * 100) if target_amount > 0 else 0
+            
+            # Determine status
+            if progress_percentage >= 100:
+                status = "Completed"
+                color = "green"
+            elif progress_percentage >= 70:
+                status = "On Track"
+                color = "green"
+            elif progress_percentage >= 40:
+                status = "Needs Attention"
+                color = "orange"
+            else:
+                status = "Behind Schedule"
+                color = "red"
+            
+            goals_analysis.append({
+                "name": goal_name,
+                "type": goal.get("type", "other"),
+                "target_amount_pv": round(target_amount, 2),  # Present value
+                "target_amount_fv": round(inflated_target_amount, 2),  # Future value (inflation-adjusted)
+                "timeframe_years": timeframe_years,
+                "priority": priority,
+                "current_saved": round(current_saved, 2),
+                "monthly_saving_needed": round(monthly_saving_needed, 2),
+                "progress_percentage": round(progress_percentage, 2),
+                "status": status,
+                "color": color,
+                "completion_year": age + timeframe_years
+            })
+        
+        # Sort goals by priority (critical first)
+        priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        goals_analysis.sort(key=lambda x: (priority_order.get(x["priority"], 4), x["timeframe_years"]))
+        
+        return {
+            "total_goals": len(goals),
+            "total_target_amount_pv": round(total_target_amount_pv, 2),
+            "total_target_amount_fv": round(total_target_amount_fv, 2),
+            "total_monthly_investment_needed": round(total_monthly_investment_needed, 2),
+            "goals_details": goals_analysis,
+            "priority_summary": priority_summary
+        }
+
 # ============================================================================
 # 6. DASHBOARD COMPONENTS
 # ============================================================================
@@ -478,6 +583,7 @@ def display_welcome():
         - Analyzes your emergency fund adequacy
         - Calculates retirement corpus needed
         - Evaluates debt burden and suggests strategies
+        - Analyzes financial goals and progress
         - Provides actionable recommendations
         - Generates a detailed PDF report
         """)
@@ -780,6 +886,9 @@ def create_goals_section():
     """Create financial goals input section"""
     st.markdown('<h2 class="section-header">🎯 Financial Goals</h2>', unsafe_allow_html=True)
     
+    # Add clarification about PV/FV
+    st.info("💡 **Note**: Enter the target amount in today's value (present value). The calculator will automatically adjust for inflation to show you the future value needed.")
+    
     # Initialize session state for goals if not exists
     if 'goals' not in st.session_state:
         st.session_state.goals = []
@@ -795,7 +904,7 @@ def create_goals_section():
                 ["Emergency Fund", "Retirement", "Home Purchase", "Education", "Vehicle", "Vacation", "Wedding", "Other"],
                 key="goal_type"
             )
-            target_amount = st.number_input("Target Amount (₹)", min_value=0, value=0, step=10000, key="target_amount")
+            target_amount = st.number_input("Target Amount (₹) - Today's Value", min_value=0, value=0, step=10000, key="target_amount")
         
         with col2:
             timeframe = st.number_input("Timeframe (Years)", min_value=1, max_value=50, value=5, step=1, key="timeframe")
@@ -840,6 +949,7 @@ def create_goals_section():
                 
                 with col2:
                     st.write(f"₹{goal['target_amount']:,.0f}")
+                    st.caption("Today's value")
                 
                 with col3:
                     st.write(f"{goal['timeframe_years']} years")
@@ -862,6 +972,8 @@ def create_goals_section():
                     if st.button("❌", key=f"delete_goal_{i}"):
                         st.session_state.goals.pop(i)
                         st.rerun()
+    else:
+        st.info("No financial goals added yet. Click 'Add a Financial Goal' to add your goals.")
     
     return st.session_state.goals
 
@@ -874,6 +986,7 @@ def run_analysis(personal_info, income_data, assets_data, debts, insurance_data,
     emergency_analyzer = EmergencyFundAnalyzer(constants)
     retirement_analyzer = RetirementAnalyzer(constants)
     debt_analyzer = DebtAnalyzer(constants)
+    goal_analyzer = GoalAnalyzer(constants)
     
     # Calculate annual income
     annual_income = sum(income_data["income"].values()) * 12
@@ -895,11 +1008,18 @@ def run_analysis(personal_info, income_data, assets_data, debts, insurance_data,
     
     debt_analysis = debt_analyzer.analyze(debts, annual_income)
     
+    # Add goal analysis
+    goal_analysis = goal_analyzer.analyze(
+        goals=goals,
+        age=personal_info["age"]
+    )
+    
     # Generate recommendations
     recommendations = generate_recommendations(
         emergency_analysis,
         retirement_analysis,
         debt_analysis,
+        goal_analysis,
         personal_info,
         annual_income,
         insurance_data
@@ -909,6 +1029,7 @@ def run_analysis(personal_info, income_data, assets_data, debts, insurance_data,
         "emergency": emergency_analysis,
         "retirement": retirement_analysis,
         "debt": debt_analysis,
+        "goals": goal_analysis,
         "recommendations": recommendations,
         "summary": {
             "net_worth": (assets_data["cash_and_bank"] + 
@@ -921,7 +1042,7 @@ def run_analysis(personal_info, income_data, assets_data, debts, insurance_data,
         }
     }
 
-def generate_recommendations(emergency, retirement, debt, personal_info, annual_income, insurance):
+def generate_recommendations(emergency, retirement, debt, goals, personal_info, annual_income, insurance):
     """Generate personalized recommendations"""
     
     recommendations = []
@@ -1003,6 +1124,48 @@ def generate_recommendations(emergency, retirement, debt, personal_info, annual_
             "impact": "Financial protection for dependents"
         })
     
+    # Goal recommendations
+    if goals["total_goals"] > 0:
+        # Check if goals are feasible given current savings
+        total_monthly_required = (
+            (emergency["shortfall"] / 6 if emergency["priority"] in ["high", "critical"] else 0) +
+            (retirement["additional_monthly_saving_needed"] if retirement["priority"] in ["high", "critical"] else 0) +
+            goals["total_monthly_investment_needed"]
+        )
+        
+        monthly_savings_capacity = annual_income / 12 * 0.3  # Assuming 30% savings capacity
+        
+        if total_monthly_required > monthly_savings_capacity:
+            recommendations.append({
+                "title": "🎯 Prioritize Financial Goals",
+                "description": f"You have {goals['total_goals']} financial goals requiring ₹{goals['total_monthly_investment_needed']:,.0f}/month. This exceeds your savings capacity.",
+                "priority": "high",
+                "actions": [
+                    "Review and prioritize goals by importance",
+                    "Consider extending timeframes for less critical goals",
+                    "Focus on 3-4 most important goals first"
+                ],
+                "timeline": "1 month",
+                "impact": "Realistic goal achievement"
+            })
+        
+        # Check for critical/high priority goals
+        critical_goals = [g for g in goals["goals_details"] if g["priority"] in ["critical", "high"]]
+        for goal in critical_goals[:3]:  # Top 3 critical/high priority goals
+            if goal["progress_percentage"] < 40:
+                recommendations.append({
+                    "title": f"🚨 Focus on: {goal['name']}",
+                    "description": f"{goal['name']} is only {goal['progress_percentage']:.1f}% funded. Needs ₹{goal['monthly_saving_needed']:,.0f}/month for {goal['timeframe_years']} years.",
+                    "priority": goal["priority"],
+                    "actions": [
+                        f"Set up SIP of ₹{goal['monthly_saving_needed']:,.0f}/month",
+                        "Review investment allocation for this goal",
+                        f"Target completion: {goal['completion_year']}"
+                    ],
+                    "timeline": f"{goal['timeframe_years']} years",
+                    "impact": f"Achieve {goal['name']} goal"
+                })
+    
     # Investment allocation recommendation
     recommendations.append({
         "title": "📊 Optimize Investment Allocation",
@@ -1029,7 +1192,7 @@ def display_results(analysis_results, personal_info):
     st.markdown('<h2 class="section-header">📊 Analysis Results</h2>', unsafe_allow_html=True)
     
     # Key Metrics
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         st.metric(
@@ -1056,6 +1219,18 @@ def display_results(analysis_results, personal_info):
         )
     
     with col4:
+        total_goals = analysis_results["goals"]["total_goals"]
+        if total_goals > 0:
+            on_track = sum(1 for g in analysis_results["goals"]["goals_details"] if g["progress_percentage"] >= 70)
+            st.metric(
+                "Goals Progress",
+                f"{on_track}/{total_goals} on track",
+                delta=f"₹{analysis_results['goals']['total_monthly_investment_needed']:,.0f}/month needed"
+            )
+        else:
+            st.metric("Financial Goals", "No goals set")
+    
+    with col5:
         st.metric(
             "Net Worth",
             f"₹{analysis_results['summary']['net_worth']:,.0f}",
@@ -1063,7 +1238,7 @@ def display_results(analysis_results, personal_info):
         )
     
     # Detailed Analysis
-    tab1, tab2, tab3, tab4 = st.tabs(["Emergency Fund", "Retirement", "Debt", "Recommendations"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Emergency Fund", "Retirement", "Debt", "Goals", "Recommendations"])
     
     with tab1:
         st.markdown("### Emergency Fund Analysis")
@@ -1108,37 +1283,25 @@ def display_results(analysis_results, personal_info):
         
         with col1:
             # Retirement Readiness Gauge
-                fig = go.Figure(go.Indicator(
-                    mode="gauge+number",
-                    value=analysis_results["retirement"]["readiness_percentage"],
-                    title={'text': "Retirement Readiness", 'font': {'size': 20}},
-                    
-                    number={'font': {'size': 38}},  # Number inside gauge
-
-                    gauge={
-                        'axis': {'range': [0, 100]},
-                        'bar': {'color': analysis_results["retirement"]["color"]},
-                        'shape': "angular",
-
-                        'steps': [
-                            {'range': [0, 40], 'color': "lightgray"},
-                            {'range': [40, 70], 'color': "gray"},
-                            {'range': [70, 100], 'color': "darkgray"},
-                        ]
-                    },
-
-                    # Adjust gauge position
-                    domain={'x': [0, 1], 'y': [0, 0.75]}
-                ))
-
-                fig.update_layout(
-                    height=260,
-                    margin=dict(l=0, r=0, t=40, b=0)
-                )
-
-                st.plotly_chart(fig, use_container_width=True)
-
-
+            fig = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=analysis_results["retirement"]["readiness_percentage"],
+                title={'text': "Retirement Readiness", 'font': {'size': 20}},
+                number={'font': {'size': 38}},
+                gauge={
+                    'axis': {'range': [0, 100]},
+                    'bar': {'color': analysis_results["retirement"]["color"]},
+                    'shape': "angular",
+                    'steps': [
+                        {'range': [0, 40], 'color': "lightgray"},
+                        {'range': [40, 70], 'color': "gray"},
+                        {'range': [70, 100], 'color': "darkgray"},
+                    ]
+                },
+                domain={'x': [0, 1], 'y': [0, 0.75]}
+            ))
+            fig.update_layout(height=260, margin=dict(l=0, r=0, t=40, b=0))
+            st.plotly_chart(fig, use_container_width=True)
         
         with col2:
             st.markdown("#### Retirement Details")
@@ -1181,6 +1344,57 @@ def display_results(analysis_results, personal_info):
             st.metric("Potential Interest Savings", f"₹{analysis_results['debt']['high_interest_savings_possible']:,.0f}")
     
     with tab4:
+        st.markdown("### Financial Goals Analysis")
+        
+        if analysis_results["goals"]["total_goals"] > 0:
+            # Display goals summary
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Total Goals", analysis_results["goals"]["total_goals"])
+            
+            with col2:
+                st.metric("Total Target Amount (Today)", f"₹{analysis_results['goals']['total_target_amount_pv']:,.0f}")
+                st.caption("Present Value")
+            
+            with col3:
+                st.metric("Monthly Investment Needed", f"₹{analysis_results['goals']['total_monthly_investment_needed']:,.0f}")
+            
+            # Display inflation-adjusted amount
+            st.info(f"💰 **Inflation Note**: Your goals will require ₹{analysis_results['goals']['total_target_amount_fv']:,.0f} in future value (after inflation adjustment)")
+            
+            # Display individual goals
+            st.markdown("#### Individual Goal Analysis")
+            
+            for goal in analysis_results["goals"]["goals_details"]:
+                with st.expander(f"{goal['name']} - {goal['status']}", expanded=False):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.metric("Target Amount (Today)", f"₹{goal['target_amount_pv']:,.0f}")
+                        st.caption("Present Value")
+                        st.metric("Target Amount (Future)", f"₹{goal['target_amount_fv']:,.0f}")
+                        st.caption("Future Value (inflation-adjusted)")
+                    
+                    with col2:
+                        st.metric("Timeframe", f"{goal['timeframe_years']} years")
+                        st.metric("Priority", goal['priority'].title())
+                    
+                    with col3:
+                        st.metric("Current Savings", f"₹{goal['current_saved']:,.0f}")
+                        st.metric("Monthly Needed", f"₹{goal['monthly_saving_needed']:,.0f}")
+                    
+                    # Progress bar
+                    progress = goal['progress_percentage'] / 100
+                    st.progress(min(1.0, progress))
+                    st.caption(f"Progress: {goal['progress_percentage']:.1f}%")
+                    
+                    # Completion year
+                    st.info(f"Target completion year: {goal['completion_year']}")
+        else:
+            st.info("No financial goals have been set. Add goals in the Goals section.")
+    
+    with tab5:
         st.markdown("### Priority Recommendations")
         
         for i, rec in enumerate(analysis_results["recommendations"]):
@@ -1318,6 +1532,10 @@ def create_pdf_report(personal_info, income_data, assets_data, debts, insurance_
         ["Debt Situation", analysis_results["debt"]["status"], f"{analysis_results['debt']['debt_to_income_ratio']:.1f}% DTI"]
     ]
     
+    if analysis_results["goals"]["total_goals"] > 0:
+        on_track = sum(1 for g in analysis_results["goals"]["goals_details"] if g["progress_percentage"] >= 70)
+        analysis_data.append(["Financial Goals", f"{on_track}/{analysis_results['goals']['total_goals']} on track", f"₹{analysis_results['goals']['total_monthly_investment_needed']:,.0f}/month"])
+    
     analysis_table = Table(analysis_data, colWidths=[120, 120, 60])
     analysis_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
@@ -1329,6 +1547,32 @@ def create_pdf_report(personal_info, income_data, assets_data, debts, insurance_
     ]))
     story.append(analysis_table)
     story.append(Spacer(1, 20))
+    
+    # Goals Summary
+    if analysis_results["goals"]["total_goals"] > 0:
+        story.append(Paragraph("Financial Goals Summary", styles["SectionTitle"]))
+        
+        goal_data = [["Goal Name", "Target Amount", "Timeframe", "Priority", "Progress"]]
+        for goal in analysis_results["goals"]["goals_details"][:5]:  # Show top 5 goals
+            goal_data.append([
+                goal["name"],
+                f"₹{goal['target_amount_fv']:,.0f}",
+                f"{goal['timeframe_years']} years",
+                goal["priority"].title(),
+                f"{goal['progress_percentage']:.1f}%"
+            ])
+        
+        goal_table = Table(goal_data, colWidths=[120, 80, 60, 60, 60])
+        goal_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7'))
+        ]))
+        story.append(goal_table)
+        story.append(Spacer(1, 20))
     
     # Recommendations
     story.append(Paragraph("Priority Recommendations", styles["SectionTitle"]))
@@ -1457,6 +1701,11 @@ def main():
         Fill in all sections for accurate analysis.
         Use realistic estimates for best results.
         All data stays in your browser.
+        
+        **Goal Planning Tip:**
+        - Enter target amounts in today's value
+        - System calculates future value automatically
+        - Consider inflation for long-term goals
         """)
     
     # Main content area
@@ -1520,6 +1769,7 @@ def main():
             - Emergency fund adequacy
             - Retirement readiness
             - Debt burden analysis
+            - Financial goals progress
             - Personalized recommendations
             
             After analysis, you can download a detailed PDF report.
