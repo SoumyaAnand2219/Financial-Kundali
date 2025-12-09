@@ -1678,6 +1678,7 @@ def create_download_button(pdf_bytes, filename):
     """, unsafe_allow_html=True)
 
 # ============================================================================
+## ============================================================================
 # 7. MAIN APPLICATION
 # ============================================================================
 
@@ -1703,166 +1704,116 @@ def main():
         ("Debts", create_debts_section),
         ("Insurance", create_insurance_section),
         ("Goals", create_goals_section),
-        ("Analysis & Report", None)  # Special case for analysis section
+        ("Analysis & Report", None)
     ]
     
-    # Create sidebar for navigation
+    # Create sidebar for progress
     with st.sidebar:
         st.image("https://img.icons8.com/color/96/000000/money-bag.png", width=100)
         st.title("Financial Planning Engine")
         
-        # Display current section
+        # Progress
         current_section_name = sections[st.session_state.current_section][0]
-        st.markdown(f"### 📍 Current Section: {current_section_name}")
-        
-        # Progress bar
         progress = (st.session_state.current_section + 1) / len(sections)
         st.progress(progress)
-        st.caption(f"**Progress: {int(progress * 100)}% complete**")
+        st.caption(f"**Progress: {int(progress * 100)}%**")
+        st.markdown(f"**Current: {current_section_name}**")
         
         st.divider()
         
-        # Section indicators
-        st.markdown("### 📋 Sections Overview:")
+        # Section list
+        st.markdown("### Sections:")
         for i, (section_name, _) in enumerate(sections):
             if i == st.session_state.current_section:
                 st.markdown(f"▶ **{section_name}**")
             elif i < st.session_state.current_section:
-                st.markdown(f"✓ ~~{section_name}~~")
+                st.markdown(f"✓ {section_name}")
             else:
                 st.markdown(f"○ {section_name}")
         
         st.divider()
         
-        # Quick Stats
-        st.markdown("### 📊 Quick Stats")
-        if st.session_state.analysis_done and st.session_state.analysis_results:
-            results = st.session_state.analysis_results
-            st.metric("Net Worth", f"₹{results['summary']['net_worth']:,.0f}")
-            st.metric("Retirement Readiness", f"{results['retirement']['readiness_percentage']:.1f}%")
-            st.metric("Debt-to-Income", f"{results['debt']['debt_to_income_ratio']:.1f}%")
-        else:
-            st.info("Complete all sections to see your financial analysis.")
-        
-        st.divider()
-        
-        # Help section
-        st.markdown("### ℹ️ Need Help?")
-        st.info("""
-        **Tips for accurate analysis:**
-        1. Fill all sections completely
-        2. Use realistic estimates
-        3. All data stays in your browser
-        
-        **Goal Planning Tip:**
-        - Enter target amounts in today's value
-        - System calculates future value automatically
-        - Consider inflation for long-term goals
-        """)
-        
-        # Quick navigation buttons in sidebar
-        st.divider()
-        st.markdown("### 🚀 Quick Actions")
-        
+        # Reset button
         if st.button("🔄 Start Over", use_container_width=True):
-            # Clear all session state
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
-        
-        if st.session_state.current_section < len(sections) - 1:
-            if st.button("⏭️ Skip to Analysis", use_container_width=True):
-                # Skip to analysis section
-                st.session_state.current_section = len(sections) - 1
-                st.rerun()
     
-    # Main content area - First show the navigation buttons clearly
+    # --- NAVIGATION BUTTONS AT THE TOP ---
     st.markdown("---")
+    st.markdown("### Navigation")
     
-    # Create a clear navigation header
-    col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
+        # Previous button
         if st.session_state.current_section > 0:
-            if st.button("⬅ Previous", use_container_width=True, help="Go to previous section"):
+            if st.button("⬅ Previous", use_container_width=True):
                 st.session_state.current_section -= 1
                 st.rerun()
-        else:
-            # Show disabled button when at first section
-            st.button("⬅ Previous", disabled=True, use_container_width=True)
     
     with col2:
-        if st.session_state.current_section < len(sections) - 2:
-            if st.button("⏭️ Skip", use_container_width=True, help="Skip this section for now"):
-                st.session_state.current_section += 1
-                st.rerun()
-        else:
-            st.button("⏭️ Skip", disabled=True, use_container_width=True)
+        # Section indicator
+        st.markdown(f"**Step {st.session_state.current_section + 1} of {len(sections)}**")
     
     with col3:
-        # Show current section indicator
-        st.markdown(f"""
-        <div style="text-align: center; padding: 10px; background-color: #f0f2f6; border-radius: 5px;">
-            <strong>Step {st.session_state.current_section + 1} of {len(sections)}</strong><br>
-            <small>{current_section_name}</small>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
+        # Next button
         if st.session_state.current_section < len(sections) - 1:
-            if st.button("Next ➡", use_container_width=True, type="primary", help="Go to next section"):
-                # Validate current section before moving forward
+            if st.button("Next ➡", use_container_width=True, type="primary"):
+                # Validate before moving forward
                 current_section_name = sections[st.session_state.current_section][0]
                 
-                # Check if required previous sections are filled
-                validation_checks = {
-                    "Income & Expenses": ['personal_info'],
-                    "Assets": ['personal_info', 'income_data'],
-                    "Debts": ['personal_info', 'income_data', 'assets_data'],
-                    "Insurance": ['personal_info', 'income_data', 'assets_data', 'debts'],
-                    "Goals": ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data'],
-                    "Analysis & Report": ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data', 'goals']
-                }
-                
-                if current_section_name in validation_checks:
-                    missing = [section for section in validation_checks[current_section_name] if section not in st.session_state]
+                if current_section_name == "Income & Expenses" and 'personal_info' not in st.session_state:
+                    st.error("Please complete Personal Information first!")
+                    st.stop()
+                elif current_section_name == "Assets" and 'income_data' not in st.session_state:
+                    st.error("Please complete Income & Expenses first!")
+                    st.stop()
+                elif current_section_name == "Debts" and 'assets_data' not in st.session_state:
+                    st.error("Please complete Assets section first!")
+                    st.stop()
+                elif current_section_name == "Insurance" and 'debts' not in st.session_state:
+                    st.error("Please complete Debts section first!")
+                    st.stop()
+                elif current_section_name == "Goals" and 'insurance_data' not in st.session_state:
+                    st.error("Please complete Insurance section first!")
+                    st.stop()
+                elif current_section_name == "Analysis & Report":
+                    required = ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data', 'goals']
+                    missing = [s for s in required if s not in st.session_state]
                     if missing:
                         missing_names = [s.replace('_', ' ').title() for s in missing]
-                        st.error(f"Please complete the following sections first: {', '.join(missing_names)}")
+                        st.error(f"Please complete: {', '.join(missing_names)}")
                         st.stop()
                 
                 st.session_state.current_section += 1
                 st.rerun()
-        else:
-            st.button("Next ➡", disabled=True, use_container_width=True)
     
-    with col5:
-        if st.session_state.current_section == len(sections) - 2:  # Second last section (Goals)
-            if st.button("Go to Analysis ➡➡", use_container_width=True, type="secondary", help="Jump directly to analysis"):
-                # Check if all required sections are filled
+    with col4:
+        # Skip to Analysis button (only on Goals section)
+        if st.session_state.current_section == len(sections) - 2:
+            if st.button("Skip to Analysis", use_container_width=True, type="secondary"):
                 required = ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data', 'goals']
-                missing = [section for section in required if section not in st.session_state]
-                
+                missing = [s for s in required if s not in st.session_state]
                 if missing:
                     missing_names = [s.replace('_', ' ').title() for s in missing]
-                    st.error(f"Please complete the following sections first: {', '.join(missing_names)}")
+                    st.error(f"Please complete: {', '.join(missing_names)}")
                     st.stop()
-                
                 st.session_state.current_section = len(sections) - 1
                 st.rerun()
     
     st.markdown("---")
     
-    # Display current section content
+    # Display current section
     current_section_name, section_function = sections[st.session_state.current_section]
     
-    # Add section header with nice styling
     st.markdown(f'<div class="section-header">{current_section_name}</div>', unsafe_allow_html=True)
     
     if section_function:
-        # Call the section function and store results
+        # Regular section
         result = section_function()
         
+        # Store result
         if current_section_name == "Personal Info":
             st.session_state.personal_info = result
         elif current_section_name == "Income & Expenses":
@@ -1876,55 +1827,32 @@ def main():
         elif current_section_name == "Goals":
             st.session_state.goals = result
         
-        # Show completion status
-        st.success(f"✅ {current_section_name} section completed!")
+        st.success(f"✅ {current_section_name} completed!")
         
-    # Special handling for Analysis & Report section
-    elif current_section_name == "Analysis & Report":
+    else:
+        # Analysis & Report section
         # Check if all data is available
-        required_sections = ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data', 'goals']
-        missing = [section for section in required_sections if section not in st.session_state]
+        required = ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data', 'goals']
+        missing = [s for s in required if s not in st.session_state]
         
         if missing:
             missing_names = [s.replace('_', ' ').title() for s in missing]
-            st.error(f"⚠️ **Incomplete Data**: Please complete the following sections first: {', '.join(missing_names)}")
+            st.error(f"⚠️ **Missing data**: {', '.join(missing_names)}")
             
-            # Show which sections are missing
-            st.markdown("### Missing Sections:")
-            for section in missing:
-                section_display = section.replace('_', ' ').title()
-                st.warning(f"• {section_display}")
-            
-            # Navigation buttons to go back
-            st.markdown("---")
-            col1, col2, col3 = st.columns(3)
-            with col2:
-                if st.button("⬅ Go Back to Previous Section", use_container_width=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("⬅ Go Back to Previous Section"):
                     st.session_state.current_section -= 1
                     st.rerun()
             st.stop()
         
-        # Analysis section content
         st.markdown("### 🚀 Ready to Analyze Your Finances?")
-        st.markdown("""
-        Click the button below to run a comprehensive analysis of your financial situation.
         
-        **What will be analyzed:**
-        - ✅ Emergency fund adequacy
-        - ✅ Retirement readiness  
-        - ✅ Debt burden analysis
-        - ✅ Financial goals progress
-        - ✅ Personalized recommendations
-        
-        After analysis, you can download a detailed PDF report.
-        """)
-        
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             if not st.session_state.analysis_done:
-                if st.button("🚀 Run Financial Analysis", use_container_width=True, type="primary", help="Click to analyze your financial data"):
-                    with st.spinner("🔍 Analyzing your finances... This may take a few moments."):
-                        # Run analysis
+                if st.button("🚀 Run Financial Analysis", use_container_width=True, type="primary"):
+                    with st.spinner("Analyzing..."):
                         analysis_results = run_analysis(
                             st.session_state.personal_info,
                             st.session_state.income_data,
@@ -1934,123 +1862,36 @@ def main():
                             st.session_state.goals
                         )
                         
-                        # Store results
                         st.session_state.analysis_results = analysis_results
                         st.session_state.analysis_done = True
-                        
-                        st.success("✅ Analysis completed successfully!")
-                        st.balloons()
+                        st.success("✅ Analysis completed!")
                         st.rerun()
             else:
                 st.success("✅ Analysis already completed!")
         
-        # Display results if analysis is done
+        # Show results if analysis is done
         if st.session_state.analysis_done and st.session_state.analysis_results:
             display_results(st.session_state.analysis_results, st.session_state.personal_info)
             
-            # Generate and display PDF download button
             st.markdown("---")
             st.markdown("### 📄 Download Report")
-            st.markdown("Generate a professional PDF report with all your financial analysis and recommendations.")
             
-            col1, col2, col3 = st.columns(3)
-            with col2:
-                if st.button("Generate PDF Report", use_container_width=True, type="secondary"):
-                    with st.spinner("📄 Generating PDF report..."):
-                        pdf_bytes = create_pdf_report(
-                            st.session_state.personal_info,
-                            st.session_state.income_data,
-                            st.session_state.assets_data,
-                            st.session_state.debts,
-                            st.session_state.insurance_data,
-                            st.session_state.goals,
-                            st.session_state.analysis_results
-                        )
-                        
-                        # Create download button
-                        filename = f"Financial_Plan_{st.session_state.personal_info['name'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-                        create_download_button(pdf_bytes, filename)
-                        
-                        st.success("✅ PDF report generated! Click the download button above.")
-    
-    # Add bottom navigation for all sections except Analysis
-    if current_section_name != "Analysis & Report":
-        st.markdown("---")
-        
-        # Bottom navigation
-        col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
-        
-        with col1:
-            if st.session_state.current_section > 0:
-                if st.button("⬅ Back", use_container_width=True, key="bottom_back"):
-                    st.session_state.current_section -= 1
-                    st.rerun()
-            else:
-                st.button("⬅ Back", disabled=True, use_container_width=True, key="bottom_back_disabled")
-        
-        with col2:
-            if st.session_state.current_section < len(sections) - 2:
-                if st.button("Skip ⏭️", use_container_width=True, key="bottom_skip"):
-                    st.session_state.current_section += 1
-                    st.rerun()
-            else:
-                st.button("Skip ⏭️", disabled=True, use_container_width=True, key="bottom_skip_disabled")
-        
-        with col3:
-            # Simple section indicator
-            st.markdown(f"**{current_section_name}**", help="Current section")
-        
-        with col4:
-            if st.session_state.current_section < len(sections) - 1:
-                if st.button("Continue ➡", use_container_width=True, type="primary", key="bottom_continue"):
-                    # Validate current section before moving forward
-                    current_section_name = sections[st.session_state.current_section][0]
+            if st.button("Generate PDF Report", use_container_width=True):
+                with st.spinner("Generating PDF..."):
+                    pdf_bytes = create_pdf_report(
+                        st.session_state.personal_info,
+                        st.session_state.income_data,
+                        st.session_state.assets_data,
+                        st.session_state.debts,
+                        st.session_state.insurance_data,
+                        st.session_state.goals,
+                        st.session_state.analysis_results
+                    )
                     
-                    # Validation checks
-                    validation_checks = {
-                        "Income & Expenses": ['personal_info'],
-                        "Assets": ['personal_info', 'income_data'],
-                        "Debts": ['personal_info', 'income_data', 'assets_data'],
-                        "Insurance": ['personal_info', 'income_data', 'assets_data', 'debts'],
-                        "Goals": ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data']
-                    }
+                    filename = f"Financial_Plan_{st.session_state.personal_info['name'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                    create_download_button(pdf_bytes, filename)
                     
-                    if current_section_name in validation_checks:
-                        missing = [section for section in validation_checks[current_section_name] if section not in st.session_state]
-                        if missing:
-                            missing_names = [s.replace('_', ' ').title() for s in missing]
-                            st.error(f"Please complete the following sections first: {', '.join(missing_names)}")
-                            st.stop()
-                    
-                    st.session_state.current_section += 1
-                    st.rerun()
-            else:
-                st.button("Continue ➡", disabled=True, use_container_width=True, key="bottom_continue_disabled")
-        
-        with col5:
-            if st.session_state.current_section == len(sections) - 2:  # Second last section (Goals)
-                if st.button("Analyze ➡➡", use_container_width=True, type="secondary", key="bottom_analyze"):
-                    # Check if all required sections are filled
-                    required = ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data', 'goals']
-                    missing = [section for section in required if section not in st.session_state]
-                    
-                    if missing:
-                        missing_names = [s.replace('_', ' ').title() for s in missing]
-                        st.error(f"Please complete the following sections first: {', '.join(missing_names)}")
-                        st.stop()
-                    
-                    st.session_state.current_section = len(sections) - 1
-                    st.rerun()
-    
-    # Add a "Start Over" button at the very bottom
-    st.markdown("---")
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if st.button("🔄 Start Over (Reset All Data)", use_container_width=True, type="secondary"):
-            # Clear all session state
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
+                    st.success("✅ PDF ready for download!")
 
 # ============================================================================
 # 8. RUN THE APPLICATION
