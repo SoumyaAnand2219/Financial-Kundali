@@ -9,6 +9,7 @@ import numpy as np
 import json
 import os
 import io
+import pickle
 from datetime import datetime, date
 from typing import Dict, List, Optional, Any, Tuple
 from enum import Enum
@@ -99,24 +100,17 @@ st.markdown("""
     .download-btn:hover {
         background-color: #27ae60 !important;
     }
-    .nav-btn {
-        background-color: #3498db;
-        color: white;
-        padding: 10px 20px;
-        border-radius: 5px;
-        font-weight: bold;
-        border: none;
-        cursor: pointer;
-        margin: 5px;
+    .save-btn {
+        background-color: #9b59b6 !important;
     }
-    .nav-btn:hover {
-        background-color: #2980b9;
+    .save-btn:hover {
+        background-color: #8e44ad !important;
     }
-    .nav-btn-secondary {
-        background-color: #95a5a6;
+    .load-btn {
+        background-color: #e67e22 !important;
     }
-    .nav-btn-secondary:hover {
-        background-color: #7f8c8d;
+    .load-btn:hover {
+        background-color: #d35400 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -596,16 +590,6 @@ def display_welcome():
         st.markdown('<h1 class="main-header">💰 Financial Planning Engine</h1>', unsafe_allow_html=True)
         st.markdown("### Your Personal Financial Advisor")
         st.markdown("Get a comprehensive analysis of your finances with personalized recommendations")
-        
-        st.info("""
-        🎯 **What this tool does:**
-        - Analyzes your emergency fund adequacy
-        - Calculates retirement corpus needed
-        - Evaluates debt burden and suggests strategies
-        - Analyzes financial goals and progress
-        - Provides actionable recommendations
-        - Generates a detailed PDF report
-        """)
 
 def create_personal_info_section():
     """Create personal information input section"""
@@ -995,6 +979,199 @@ def create_goals_section():
         st.info("No financial goals added yet. Click 'Add a Financial Goal' to add your goals.")
     
     return st.session_state.goals
+
+# ============================================================================
+# SESSION PERSISTENCE FUNCTIONS
+# ============================================================================
+
+def save_session():
+    """Save current session data to a file"""
+    session_data = {
+        'personal_info': st.session_state.get('personal_info'),
+        'income_data': st.session_state.get('income_data'),
+        'assets_data': st.session_state.get('assets_data'),
+        'debts': st.session_state.get('debts', []),
+        'insurance_data': st.session_state.get('insurance_data'),
+        'goals': st.session_state.get('goals', []),
+        'current_section': st.session_state.get('current_section', 0),
+        'analysis_done': st.session_state.get('analysis_done', False),
+        'analysis_results': st.session_state.get('analysis_results'),
+        'saved_timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
+    # Convert to JSON string
+    json_data = json.dumps(session_data, default=str, indent=2)
+    
+    # Create download link
+    b64 = base64.b64encode(json_data.encode()).decode()
+    
+    # Get user name for filename
+    user_name = "Financial_Plan"
+    if session_data['personal_info'] and 'name' in session_data['personal_info']:
+        user_name = session_data['personal_info']['name'].replace(" ", "_")
+    
+    filename = f"{user_name}_Financial_Session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    
+    href = f'<a href="data:application/json;base64,{b64}" download="{filename}" class="save-btn">💾 Save Session</a>'
+    
+    st.markdown(f"""
+    <div style="text-align: center; margin: 10px 0;">
+        {href}
+    </div>
+    <style>
+        .save-btn {{
+            display: inline-block;
+            background-color: #9b59b6;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }}
+        .save-btn:hover {{
+            background-color: #8e44ad;
+            color: white;
+            text-decoration: none;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+    
+    return session_data
+
+def load_session():
+    """Load session data from uploaded file"""
+    uploaded_file = st.file_uploader("📁 Upload saved session file (.json)", type=['json'])
+    
+    if uploaded_file is not None:
+        try:
+            # Read and parse JSON data
+            json_data = uploaded_file.read().decode('utf-8')
+            session_data = json.loads(json_data)
+            
+            # Validate the session data
+            required_keys = ['personal_info', 'income_data', 'assets_data', 'debts', 
+                           'insurance_data', 'goals', 'current_section']
+            
+            if all(key in session_data for key in required_keys):
+                # Restore session state
+                st.session_state.personal_info = session_data.get('personal_info')
+                st.session_state.income_data = session_data.get('income_data')
+                st.session_state.assets_data = session_data.get('assets_data')
+                st.session_state.debts = session_data.get('debts', [])
+                st.session_state.insurance_data = session_data.get('insurance_data')
+                st.session_state.goals = session_data.get('goals', [])
+                st.session_state.current_section = session_data.get('current_section', 0)
+                st.session_state.analysis_done = session_data.get('analysis_done', False)
+                st.session_state.analysis_results = session_data.get('analysis_results')
+                
+                saved_time = session_data.get('saved_timestamp', 'Unknown')
+                st.success(f"✅ Session loaded successfully! (Saved: {saved_time})")
+                st.rerun()
+            else:
+                st.error("Invalid session file format. Missing required data.")
+                
+        except json.JSONDecodeError:
+            st.error("Invalid JSON file. Please upload a valid session file.")
+        except Exception as e:
+            st.error(f"Error loading session: {str(e)}")
+
+def create_session_management_section():
+    """Create session management interface"""
+    st.markdown('<h2 class="section-header">💾 Session Management</h2>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### Save Current Session")
+        st.markdown("""
+        Save your current financial data to a file. You can:
+        - Continue later from where you left off
+        - Keep multiple scenarios
+        - Backup your financial plan
+        """)
+        
+        # Check if there's data to save
+        has_data = any([
+            st.session_state.get('personal_info'),
+            st.session_state.get('income_data'),
+            st.session_state.get('assets_data'),
+            st.session_state.get('debts'),
+            st.session_state.get('insurance_data'),
+            st.session_state.get('goals')
+        ])
+        
+        if has_data:
+            save_session()
+        else:
+            st.warning("No data to save yet. Complete at least one section.")
+    
+    with col2:
+        st.markdown("### Load Saved Session")
+        st.markdown("""
+        Load a previously saved session to:
+        - Continue your financial planning
+        - Compare different scenarios
+        - Review previous analysis
+        """)
+        
+        load_session()
+    
+    # Quick load from example (optional)
+    st.markdown("---")
+    st.markdown("### Quick Start Examples")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🚀 Load Example: Young Professional", use_container_width=True):
+            # Create example data for a young professional
+            st.session_state.personal_info = {
+                "name": "Alex Johnson",
+                "age": 28,
+                "retirement_age": 60,
+                "dependents": 0,
+                "city_tier": "Tier 1 (Metro)",
+                "risk_appetite": "aggressive"
+            }
+            st.session_state.current_section = 0
+            st.success("Example loaded! Navigate to next sections.")
+            st.rerun()
+    
+    with col2:
+        if st.button("👨‍👩‍👧‍👦 Load Example: Family Planner", use_container_width=True):
+            # Create example data for a family
+            st.session_state.personal_info = {
+                "name": "Priya Sharma",
+                "age": 35,
+                "retirement_age": 60,
+                "dependents": 2,
+                "city_tier": "Tier 1 (Metro)",
+                "risk_appetite": "moderate"
+            }
+            st.session_state.current_section = 0
+            st.success("Example loaded! Navigate to next sections.")
+            st.rerun()
+    
+    with col3:
+        if st.button("🧓 Load Example: Pre-Retirement", use_container_width=True):
+            # Create example data for pre-retirement
+            st.session_state.personal_info = {
+                "name": "Robert Chen",
+                "age": 55,
+                "retirement_age": 65,
+                "dependents": 1,
+                "city_tier": "Tier 2",
+                "risk_appetite": "conservative"
+            }
+            st.session_state.current_section = 0
+            st.success("Example loaded! Navigate to next sections.")
+            st.rerun()
+
+# ============================================================================
+# ANALYSIS FUNCTIONS
+# ============================================================================
 
 def run_analysis(personal_info, income_data, assets_data, debts, insurance_data, goals):
     """Run complete financial analysis"""
@@ -1678,8 +1855,7 @@ def create_download_button(pdf_bytes, filename):
     """, unsafe_allow_html=True)
 
 # ============================================================================
-## ============================================================================
-# 7. MAIN APPLICATION
+# 7. MAIN APPLICATION WITH SESSION PERSISTENCE
 # ============================================================================
 
 def main():
@@ -1688,13 +1864,25 @@ def main():
     # Display welcome
     display_welcome()
     
-    # Initialize session state
+    # Initialize session state with defaults
     if 'analysis_done' not in st.session_state:
         st.session_state.analysis_done = False
     if 'analysis_results' not in st.session_state:
         st.session_state.analysis_results = None
     if 'current_section' not in st.session_state:
         st.session_state.current_section = 0
+    if 'personal_info' not in st.session_state:
+        st.session_state.personal_info = None
+    if 'income_data' not in st.session_state:
+        st.session_state.income_data = None
+    if 'assets_data' not in st.session_state:
+        st.session_state.assets_data = None
+    if 'debts' not in st.session_state:
+        st.session_state.debts = []
+    if 'insurance_data' not in st.session_state:
+        st.session_state.insurance_data = None
+    if 'goals' not in st.session_state:
+        st.session_state.goals = []
     
     # Define sections
     sections = [
@@ -1707,22 +1895,54 @@ def main():
         ("Analysis & Report", None)
     ]
     
-    # Create sidebar for progress
+    # Create sidebar for navigation and session management
     with st.sidebar:
         st.image("https://img.icons8.com/color/96/000000/money-bag.png", width=100)
         st.title("Financial Planning Engine")
         
-        # Progress
+        # Session Management Section
+        st.markdown("### 💾 Session Management")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💾 Save", use_container_width=True, help="Save current session to file"):
+                # This will trigger the save functionality in the main area
+                st.session_state.show_save = True
+                st.rerun()
+        
+        with col2:
+            if st.button("📂 Load", use_container_width=True, help="Load saved session from file"):
+                st.session_state.show_load = True
+                st.rerun()
+        
+        st.divider()
+        
+        # Progress tracking
         current_section_name = sections[st.session_state.current_section][0]
         progress = (st.session_state.current_section + 1) / len(sections)
+        
         st.progress(progress)
         st.caption(f"**Progress: {int(progress * 100)}%**")
         st.markdown(f"**Current: {current_section_name}**")
         
         st.divider()
         
-        # Section list
-        st.markdown("### Sections:")
+        # Quick navigation
+        st.markdown("### 🗺️ Quick Navigation")
+        if st.button("🔄 Start Over", use_container_width=True):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+        
+        if st.session_state.current_section < len(sections) - 1:
+            if st.button("⏭️ Skip to Analysis", use_container_width=True):
+                st.session_state.current_section = len(sections) - 1
+                st.rerun()
+        
+        st.divider()
+        
+        # Section indicators
+        st.markdown("### 📋 Sections:")
         for i, (section_name, _) in enumerate(sections):
             if i == st.session_state.current_section:
                 st.markdown(f"▶ **{section_name}**")
@@ -1730,74 +1950,79 @@ def main():
                 st.markdown(f"✓ {section_name}")
             else:
                 st.markdown(f"○ {section_name}")
-        
-        st.divider()
-        
-        # Reset button
-        if st.button("🔄 Start Over", use_container_width=True):
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
     
-    # --- NAVIGATION BUTTONS AT THE TOP ---
+    # Main content area
+    # Show save/load section if triggered
+    if st.session_state.get('show_save', False):
+        st.markdown('<h2 class="section-header">💾 Save Current Session</h2>', unsafe_allow_html=True)
+        save_session()
+        
+        if st.button("← Back to Main", use_container_width=True):
+            st.session_state.show_save = False
+            st.rerun()
+        return
+    
+    if st.session_state.get('show_load', False):
+        st.markdown('<h2 class="section-header">📂 Load Saved Session</h2>', unsafe_allow_html=True)
+        load_session()
+        
+        if st.button("← Back to Main", use_container_width=True):
+            st.session_state.show_load = False
+            st.rerun()
+        return
+    
+    # Navigation buttons at top
     st.markdown("---")
-    st.markdown("### Navigation")
     
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        # Previous button
         if st.session_state.current_section > 0:
             if st.button("⬅ Previous", use_container_width=True):
                 st.session_state.current_section -= 1
                 st.rerun()
     
     with col2:
-        # Section indicator
         st.markdown(f"**Step {st.session_state.current_section + 1} of {len(sections)}**")
     
     with col3:
-        # Next button
         if st.session_state.current_section < len(sections) - 1:
             if st.button("Next ➡", use_container_width=True, type="primary"):
                 # Validate before moving forward
                 current_section_name = sections[st.session_state.current_section][0]
                 
-                if current_section_name == "Income & Expenses" and 'personal_info' not in st.session_state:
+                if current_section_name == "Income & Expenses" and not st.session_state.personal_info:
                     st.error("Please complete Personal Information first!")
                     st.stop()
-                elif current_section_name == "Assets" and 'income_data' not in st.session_state:
+                elif current_section_name == "Assets" and not st.session_state.income_data:
                     st.error("Please complete Income & Expenses first!")
                     st.stop()
-                elif current_section_name == "Debts" and 'assets_data' not in st.session_state:
+                elif current_section_name == "Debts" and not st.session_state.assets_data:
                     st.error("Please complete Assets section first!")
                     st.stop()
-                elif current_section_name == "Insurance" and 'debts' not in st.session_state:
+                elif current_section_name == "Insurance" and not st.session_state.debts:
                     st.error("Please complete Debts section first!")
                     st.stop()
-                elif current_section_name == "Goals" and 'insurance_data' not in st.session_state:
+                elif current_section_name == "Goals" and not st.session_state.insurance_data:
                     st.error("Please complete Insurance section first!")
                     st.stop()
                 elif current_section_name == "Analysis & Report":
-                    required = ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data', 'goals']
-                    missing = [s for s in required if s not in st.session_state]
-                    if missing:
-                        missing_names = [s.replace('_', ' ').title() for s in missing]
-                        st.error(f"Please complete: {', '.join(missing_names)}")
+                    required = [st.session_state.personal_info, st.session_state.income_data, 
+                               st.session_state.assets_data, st.session_state.insurance_data]
+                    if not all(required) or len(st.session_state.goals) == 0:
+                        st.error("Please complete all sections first!")
                         st.stop()
                 
                 st.session_state.current_section += 1
                 st.rerun()
     
     with col4:
-        # Skip to Analysis button (only on Goals section)
         if st.session_state.current_section == len(sections) - 2:
-            if st.button("Skip to Analysis", use_container_width=True, type="secondary"):
-                required = ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data', 'goals']
-                missing = [s for s in required if s not in st.session_state]
-                if missing:
-                    missing_names = [s.replace('_', ' ').title() for s in missing]
-                    st.error(f"Please complete: {', '.join(missing_names)}")
+            if st.button("Analyze Now", use_container_width=True, type="secondary"):
+                required = [st.session_state.personal_info, st.session_state.income_data, 
+                           st.session_state.assets_data, st.session_state.insurance_data]
+                if not all(required) or len(st.session_state.goals) == 0:
+                    st.error("Please complete all sections first!")
                     st.stop()
                 st.session_state.current_section = len(sections) - 1
                 st.rerun()
@@ -1832,12 +2057,25 @@ def main():
     else:
         # Analysis & Report section
         # Check if all data is available
-        required = ['personal_info', 'income_data', 'assets_data', 'debts', 'insurance_data', 'goals']
-        missing = [s for s in required if s not in st.session_state]
+        required = [st.session_state.personal_info, st.session_state.income_data, 
+                   st.session_state.assets_data, st.session_state.insurance_data]
         
-        if missing:
-            missing_names = [s.replace('_', ' ').title() for s in missing]
-            st.error(f"⚠️ **Missing data**: {', '.join(missing_names)}")
+        if not all(required) or len(st.session_state.goals) == 0:
+            st.error("⚠️ **Incomplete Data**: Please complete all sections first!")
+            
+            missing_sections = []
+            if not st.session_state.personal_info:
+                missing_sections.append("Personal Info")
+            if not st.session_state.income_data:
+                missing_sections.append("Income & Expenses")
+            if not st.session_state.assets_data:
+                missing_sections.append("Assets")
+            if not st.session_state.insurance_data:
+                missing_sections.append("Insurance")
+            if len(st.session_state.goals) == 0:
+                missing_sections.append("Goals")
+            
+            st.markdown(f"**Missing sections:** {', '.join(missing_sections)}")
             
             col1, col2 = st.columns(2)
             with col1:
