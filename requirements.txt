@@ -4,4 +4,4 @@ numpy
 plotly
 reportlab
 Pillow
-scipy
+Scipy
