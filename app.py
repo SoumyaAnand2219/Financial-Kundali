@@ -10,6 +10,7 @@ import json
 import os
 import io
 import pickle
+import csv
 from datetime import datetime, date
 from typing import Dict, List, Optional, Any, Tuple
 from enum import Enum
@@ -23,7 +24,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 import base64
@@ -974,6 +975,210 @@ class MonteCarloSimulator:
             "percentiles": simulation["statistics"]["percentiles"],
             "simulation_data": simulation
         }
+
+# ============================================================================
+# NEW: PDF REPORT GENERATOR
+# ============================================================================
+
+class PDFReportGenerator:
+    """Generate comprehensive PDF reports"""
+    
+    def __init__(self, analysis_results: Dict, personal_info: Dict, constants: FinancialConstants):
+        self.analysis = analysis_results
+        self.personal_info = personal_info
+        self.constants = constants
+        self.styles = getSampleStyleSheet()
+        
+        # Custom styles
+        self.styles.add(ParagraphStyle(
+            name='CustomTitle',
+            parent=self.styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor("#2c3e50"),
+            spaceAfter=30,
+            alignment=TA_CENTER
+        ))
+        
+        self.styles.add(ParagraphStyle(
+            name='SectionHeader',
+            parent=self.styles['Heading2'],
+            fontSize=16,
+            textColor=colors.HexColor("#34495e"),
+            spaceAfter=12,
+            spaceBefore=20,
+            leftIndent=10
+        ))
+        
+        self.styles.add(ParagraphStyle(
+            name='BodyText',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            textColor=colors.black,
+            spaceAfter=6
+        ))
+    
+    def generate_report(self) -> bytes:
+        """Generate and return PDF as bytes"""
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+        
+        story = []
+        
+        # 1. Title Page
+        story.append(Paragraph("Financial Planning Report", self.styles['CustomTitle']))
+        story.append(Spacer(1, 20))
+        
+        # Client Information
+        story.append(Paragraph(f"Client: {self.personal_info.get('name', 'N/A')}", self.styles['Heading2']))
+        story.append(Paragraph(f"Age: {self.personal_info.get('age', 'N/A')} | Retirement Age: {self.personal_info.get('retirement_age', 'N/A')}", self.styles['BodyText']))
+        story.append(Paragraph(f"Report Date: {datetime.now().strftime('%B %d, %Y')}", self.styles['BodyText']))
+        story.append(Spacer(1, 30))
+        
+        # 2. Financial Health Score
+        health_score = self.analysis.get('health_score', {})
+        if health_score:
+            story.append(Paragraph("Financial Health Score", self.styles['SectionHeader']))
+            score = health_score.get('total_score', 0)
+            category = health_score.get('category', 'N/A')
+            color = self._get_score_color(score)
+            
+            story.append(Paragraph(f"<font color='{color}'><b>{score}/100</b></font> - {category}", 
+                                 ParagraphStyle(name='ScoreStyle', fontSize=20, textColor=colors.HexColor(color), alignment=TA_CENTER)))
+            story.append(Paragraph(health_score.get('description', ''), self.styles['BodyText']))
+            story.append(Spacer(1, 15))
+        
+        # 3. Key Metrics Table
+        story.append(Paragraph("Key Financial Metrics", self.styles['SectionHeader']))
+        
+        metrics_data = [
+            ['Metric', 'Value', 'Status'],
+            ['Emergency Fund Adequacy', f"{self.analysis['emergency']['adequacy_percentage']:.1f}%", self.analysis['emergency']['status']],
+            ['Retirement Readiness', f"{self.analysis['retirement']['readiness_percentage']:.1f}%", self.analysis['retirement']['status']],
+            ['Debt-to-Income Ratio', f"{self.analysis['debt']['debt_to_income_ratio']:.1f}%", self.analysis['debt']['status']],
+            ['Monthly Savings Rate', f"{self.analysis['summary']['savings_rate']:.1f}%", 'Good' if self.analysis['summary']['savings_rate'] > 20 else 'Needs Improvement'],
+            ['Net Worth', f"₹{self.analysis['summary']['net_worth']:,.0f}", 'Positive' if self.analysis['summary']['net_worth'] > 0 else 'Negative']
+        ]
+        
+        metrics_table = Table(metrics_data, colWidths=[200, 100, 100])
+        metrics_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
+        ]))
+        story.append(metrics_table)
+        story.append(Spacer(1, 20))
+        
+        # 4. Emergency Fund Analysis
+        story.append(Paragraph("Emergency Fund Analysis", self.styles['SectionHeader']))
+        emergency = self.analysis['emergency']
+        story.append(Paragraph(f"Current Fund: ₹{emergency['current_fund']:,.0f}", self.styles['BodyText']))
+        story.append(Paragraph(f"Required Fund: ₹{emergency['required_fund']:,.0f}", self.styles['BodyText']))
+        story.append(Paragraph(f"Months Coverage: {emergency['months_coverage']:.1f} months", self.styles['BodyText']))
+        story.append(Paragraph(f"Shortfall: ₹{emergency['shortfall']:,.0f}", self.styles['BodyText']))
+        story.append(Spacer(1, 15))
+        
+        # 5. Retirement Analysis
+        story.append(Paragraph("Retirement Planning", self.styles['SectionHeader']))
+        retirement = self.analysis['retirement']
+        story.append(Paragraph(f"Years to Retirement: {retirement['years_to_retirement']}", self.styles['BodyText']))
+        story.append(Paragraph(f"Corpus Needed: ₹{retirement['corpus_needed']:,.0f}", self.styles['BodyText']))
+        story.append(Paragraph(f"Projected Corpus: ₹{retirement['projected_corpus']:,.0f}", self.styles['BodyText']))
+        story.append(Paragraph(f"Additional Monthly Saving Needed: ₹{retirement['additional_monthly_saving_needed']:,.0f}", self.styles['BodyText']))
+        story.append(Spacer(1, 15))
+        
+        # 6. Debt Analysis
+        story.append(Paragraph("Debt Analysis", self.styles['SectionHeader']))
+        debt = self.analysis['debt']
+        story.append(Paragraph(f"Total Debt: ₹{debt['total_debt']:,.0f}", self.styles['BodyText']))
+        story.append(Paragraph(f"Monthly EMI: ₹{debt['monthly_emi']:,.0f}", self.styles['BodyText']))
+        story.append(Paragraph(f"High-Interest Debts: {debt['high_interest_debt_count']}", self.styles['BodyText']))
+        story.append(Spacer(1, 15))
+        
+        # 7. Goals Summary
+        story.append(Paragraph("Financial Goals Summary", self.styles['SectionHeader']))
+        goals = self.analysis['goals']
+        if goals['total_goals'] > 0:
+            story.append(Paragraph(f"Total Goals: {goals['total_goals']}", self.styles['BodyText']))
+            story.append(Paragraph(f"Total Target Amount: ₹{goals['total_target_amount_pv']:,.0f} (Today's Value)", self.styles['BodyText']))
+            story.append(Paragraph(f"Monthly Investment Needed: ₹{goals['total_monthly_investment_needed']:,.0f}", self.styles['BodyText']))
+        else:
+            story.append(Paragraph("No financial goals set", self.styles['BodyText']))
+        story.append(Spacer(1, 15))
+        
+        # 8. Monte Carlo Simulation Results
+        monte_carlo = self.analysis.get('monte_carlo', {})
+        if 'retirement' in monte_carlo:
+            story.append(Paragraph("Monte Carlo Simulation Results", self.styles['SectionHeader']))
+            retirement_sim = monte_carlo['retirement']
+            prob = retirement_sim.get('success_probability', 0)
+            story.append(Paragraph(f"Retirement Success Probability: {prob:.1f}%", self.styles['BodyText']))
+            
+            if prob >= 80:
+                status = "High Confidence"
+            elif prob >= 60:
+                status = "Moderate Confidence"
+            else:
+                status = "Low Confidence"
+            
+            story.append(Paragraph(f"Status: {status}", self.styles['BodyText']))
+            story.append(Spacer(1, 15))
+        
+        # 9. Priority Recommendations
+        story.append(Paragraph("Priority Recommendations", self.styles['SectionHeader']))
+        recommendations = self.analysis.get('recommendations', [])
+        
+        if recommendations:
+            for i, rec in enumerate(recommendations[:5]):  # Top 5 recommendations
+                story.append(Paragraph(f"{i+1}. {rec['title']}", 
+                                     ParagraphStyle(name='RecTitle', fontSize=11, textColor=colors.black, spaceAfter=3)))
+                story.append(Paragraph(rec['description'], 
+                                     ParagraphStyle(name='RecDesc', fontSize=9, textColor=colors.grey, leftIndent=10, spaceAfter=3)))
+                story.append(Paragraph(f"Timeline: {rec['timeline']} | Priority: {rec['priority'].title()}", 
+                                     ParagraphStyle(name='RecMeta', fontSize=8, textColor=colors.grey, leftIndent=10, spaceAfter=8)))
+        else:
+            story.append(Paragraph("No recommendations available", self.styles['BodyText']))
+        
+        # 10. Disclaimer
+        story.append(Spacer(1, 30))
+        story.append(Paragraph("Disclaimer:", 
+                             ParagraphStyle(name='DisclaimerTitle', fontSize=9, textColor=colors.red, spaceAfter=3)))
+        story.append(Paragraph("This report is for informational purposes only and should not be considered as financial advice. Please consult with a qualified financial advisor before making any investment decisions. Past performance is not indicative of future results.", 
+                             ParagraphStyle(name='Disclaimer', fontSize=8, textColor=colors.grey, alignment=TA_JUSTIFY)))
+        
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+    
+    def _get_score_color(self, score: float) -> str:
+        """Get color based on score"""
+        if score >= 80:
+            return '#27ae60'  # Green
+        elif score >= 65:
+            return '#2ecc71'  # Light Green
+        elif score >= 50:
+            return '#f39c12'  # Orange
+        else:
+            return '#e74c3c'  # Red
+
+def create_pdf_report(personal_info: Dict, analysis_results: Dict) -> bytes:
+    """Create PDF report wrapper function"""
+    constants = FinancialConstants()
+    generator = PDFReportGenerator(analysis_results, personal_info, constants)
+    return generator.generate_report()
 
 # ============================================================================
 # 6. DASHBOARD COMPONENTS
@@ -2468,8 +2673,7 @@ def main():
     
     # Create sidebar for navigation and session management
     with st.sidebar:
-        st.image("https://img.icons8.com/color/96/000000/money-bag.png", width=100)
-        st.title("Financial Planning Engine")
+        st.markdown("## 💰 Financial Planning Engine")
         
         # Session Management Section
         st.markdown("### 💾 Session Management")
@@ -2720,15 +2924,109 @@ def main():
             display_results(st.session_state.analysis_results, st.session_state.personal_info)
             
             st.markdown("---")
-            st.markdown("### 📄 Download Report")
+            st.markdown("### 📄 Download Reports")
             
-            # Note: PDF report generation would need to be updated to include new features
-            st.info("**Note**: The PDF report will include your Financial Health Score and key analysis results.")
+            col1, col2 = st.columns(2)
             
-            if st.button("Generate Enhanced PDF Report", use_container_width=True):
-                st.info("Enhanced PDF report generation is being developed...")
-                # For now, we'll use the existing PDF generation
-                # In a full implementation, you would update create_pdf_report to include new features
+            with col1:
+                if st.button("📊 Generate PDF Report", use_container_width=True, type="primary"):
+                    with st.spinner("Generating comprehensive PDF report..."):
+                        try:
+                            # Generate PDF
+                            pdf_bytes = create_pdf_report(
+                                st.session_state.personal_info, 
+                                st.session_state.analysis_results
+                            )
+                            
+                            # Create download link
+                            b64 = base64.b64encode(pdf_bytes).decode()
+                            client_name = st.session_state.personal_info.get('name', 'Financial_Report').replace(" ", "_")
+                            filename = f"{client_name}_Financial_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                            
+                            # Display download button
+                            href = f'''
+                            <a href="data:application/pdf;base64,{b64}" download="{filename}" 
+                               style="display: inline-block; background-color: #2ecc71; color: white; 
+                                      padding: 12px 24px; text-align: center; text-decoration: none; 
+                                      border-radius: 5px; font-weight: bold; margin: 10px 0;">
+                               📥 Download PDF Report
+                            </a>
+                            '''
+                            st.markdown(href, unsafe_allow_html=True)
+                            st.success("✅ PDF report generated successfully!")
+                            
+                        except Exception as e:
+                            st.error(f"Error generating PDF: {str(e)}")
+                            st.info("Please try again or check the console for details.")
+            
+            with col2:
+                if st.button("📈 Export Data to CSV", use_container_width=True):
+                    # Create CSV export
+                    buffer = io.StringIO()
+                    writer = csv.writer(buffer)
+                    
+                    # Write header
+                    writer.writerow(["FINANCIAL PLANNING REPORT"])
+                    writer.writerow([f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"])
+                    writer.writerow([f"Client: {st.session_state.personal_info.get('name', 'N/A')}"])
+                    writer.writerow([])
+                    
+                    # Write summary
+                    analysis = st.session_state.analysis_results
+                    writer.writerow(["SUMMARY METRICS"])
+                    writer.writerow(["Metric", "Value", "Status"])
+                    writer.writerow([
+                        "Financial Health Score", 
+                        f"{analysis['health_score']['total_score']}/100", 
+                        analysis['health_score']['category']
+                    ])
+                    writer.writerow([
+                        "Emergency Fund Adequacy", 
+                        f"{analysis['emergency']['adequacy_percentage']:.1f}%", 
+                        analysis['emergency']['status']
+                    ])
+                    writer.writerow([
+                        "Retirement Readiness", 
+                        f"{analysis['retirement']['readiness_percentage']:.1f}%", 
+                        analysis['retirement']['status']
+                    ])
+                    writer.writerow([
+                        "Debt-to-Income Ratio", 
+                        f"{analysis['debt']['debt_to_income_ratio']:.1f}%", 
+                        analysis['debt']['status']
+                    ])
+                    writer.writerow(["Net Worth", f"₹{analysis['summary']['net_worth']:,.0f}", "N/A"])
+                    writer.writerow([])
+                    
+                    # Write goals
+                    if analysis['goals']['total_goals'] > 0:
+                        writer.writerow(["FINANCIAL GOALS"])
+                        writer.writerow(["Goal", "Target Amount", "Timeframe", "Priority", "Progress"])
+                        for goal in analysis['goals']['goals_details']:
+                            writer.writerow([
+                                goal['name'],
+                                f"₹{goal['target_amount_pv']:,.0f}",
+                                f"{goal['timeframe_years']} years",
+                                goal['priority'].title(),
+                                f"{goal['progress_percentage']:.1f}%"
+                            ])
+                    
+                    # Create download link
+                    csv_data = buffer.getvalue()
+                    b64_csv = base64.b64encode(csv_data.encode()).decode()
+                    client_name = st.session_state.personal_info.get('name', 'Financial_Data').replace(" ", "_")
+                    csv_filename = f"{client_name}_Financial_Data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                    
+                    href_csv = f'''
+                    <a href="data:file/csv;base64,{b64_csv}" download="{csv_filename}"
+                       style="display: inline-block; background-color: #3498db; color: white; 
+                              padding: 12px 24px; text-align: center; text-decoration: none; 
+                              border-radius: 5px; font-weight: bold; margin: 10px 0;">
+                       📥 Download CSV Data
+                    </a>
+                    '''
+                    st.markdown(href_csv, unsafe_allow_html=True)
+                    st.success("✅ CSV data exported successfully!")
 
 # ============================================================================
 # 8. RUN THE APPLICATION
