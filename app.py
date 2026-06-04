@@ -1455,8 +1455,13 @@ def section_personal_info():
         ret_age    = st.number_input("Planned Retirement Age", 40, 75, st.session_state.get("pi_ret_age", 60), step=1)
         dependents = st.number_input("Number of Dependents",   0,  10, st.session_state.get("pi_dep", 1), step=1)
     with col3:
-        city_tier = st.selectbox("City Tier", ["Tier 1 (Metro)", "Tier 2", "Tier 3"],
-                                  index=st.session_state.get("pi_city", 0))
+        city_options = ["Tier 1 (Metro)", "Tier 2", "Tier 3"]
+        saved_city = st.session_state.get("pi_city", 0)
+        if isinstance(saved_city, str):
+            city_index = city_options.index(saved_city) if saved_city in city_options else 0
+        else:
+            city_index = int(saved_city) if saved_city in range(len(city_options)) else 0
+        city_tier = st.selectbox("City Tier", city_options, index=city_index)
         life_expectancy = st.number_input("Life Expectancy (for planning)", 70, 100,
                                            st.session_state.get("pi_le", 85), step=1)
 
