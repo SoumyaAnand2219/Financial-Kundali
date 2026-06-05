@@ -2551,7 +2551,7 @@ def main():
         return
 
     # ---- HERO ----
-    st.markdown('<div class="hero-title">OMEGA</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-title">FINANCIAL KUNDLI</div>', unsafe_allow_html=True)
     st.markdown('<div class="hero-sub">Built to Last.</div>', unsafe_allow_html=True)
 
     # ---- NAV ----
