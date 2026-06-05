@@ -411,9 +411,9 @@ class EmergencyFundAnalyser:
         if pct >= 100:
             status, color = "Adequate", "#00A651"
         elif pct >= 50:
-            status, color = "Partial", "#f5a623"
+            status, color = "Partial", "#F4B400"
         else:
-            status, color = "Insufficient", "#e05c5c"
+            status, color = "Insufficient", "#E53E3E"
 
         return {
             "required_fund":       required,
@@ -484,9 +484,9 @@ class RetirementPlanner:
         if readiness >= 80:
             status, color = "On Track",    "#00A651"
         elif readiness >= 50:
-            status, color = "Needs Work",  "#f5a623"
+            status, color = "Needs Work",  "#F4B400"
         else:
-            status, color = "Underfunded", "#e05c5c"
+            status, color = "Underfunded", "#E53E3E"
 
         return {
             "years_to_retirement":               ytr,
@@ -532,9 +532,9 @@ class DebtAnalyser:
         if dti <= 20:
             status, color = "Healthy",    "#00A651"
         elif dti <= 40:
-            status, color = "Manageable", "#f5a623"
+            status, color = "Manageable", "#F4B400"
         else:
-            status, color = "Stressed",   "#e05c5c"
+            status, color = "Stressed",   "#E53E3E"
 
         sorted_debts = sorted(debts, key=lambda x: x.get("interest_rate", 0), reverse=True)
         priority     = [{"name": d["name"], "rate": d["interest_rate"], "outstanding": d["outstanding_amount"]}
@@ -836,11 +836,11 @@ class FinancialHealthScorer:
         elif total_score >= 65:
             cat, desc, col = "Good",      "Solid foundation with specific areas for improvement.",    "#47B86B"
         elif total_score >= 50:
-            cat, desc, col = "Fair",      "Functional but with notable gaps that need attention.",    "#f5a623"
+            cat, desc, col = "Fair",      "Functional but with notable gaps that need attention.",    "#F4B400"
         elif total_score >= 35:
             cat, desc, col = "Needs Work","Several critical areas require immediate action.",         "#e08040"
         else:
-            cat, desc, col = "Critical",  "Urgent financial attention required across multiple areas.", "#e05c5c"
+            cat, desc, col = "Critical",  "Urgent financial attention required across multiple areas.", "#E53E3E"
 
         return {
             "total_score": round(total_score, 1),
@@ -1182,8 +1182,8 @@ THEME_CSS = """
 /* ── Base ──────────────────────────────────────────────────────────────── */
 html, body, [class*="css"] {
     font-family: 'DM Sans', sans-serif;
-    background-color: #0f1117;
-    color: #d0d3e0;
+    background-color: #F7FAFC;
+    color: #4A5568;
 }
 .block-container { padding: 1.5rem 2rem 2rem; max-width: 1200px; }
 
@@ -1198,7 +1198,7 @@ html, body, [class*="css"] {
 }
 .hero-sub {
     text-align: center;
-    color: #8a8fa8;
+    color: #718096;
     font-size: 1rem;
     margin-bottom: 1.5rem;
 }
@@ -1207,28 +1207,29 @@ html, body, [class*="css"] {
 .section-title {
     font-family: 'DM Serif Display', serif;
     font-size: 1.5rem;
-    color: #e8e2d8;
+    color: #0B2E59;
     margin: 1.2rem 0 0.8rem;
     padding-bottom: 0.4rem;
-    border-bottom: 1px solid #2a2d3e;
+    border-bottom: 1px solid #DCE6F2;
 }
 
 /* ── Cards ─────────────────────────────────────────────────────────────── */
 .card {
-    background: #1a1d27;
-    border: 1px solid #2a2d3e;
+    background: #FFFFFF;
+    border: 1px solid #DCE6F2;
     border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(11,92,173,0.08);
     padding: 1rem 1.2rem;
 }
 .card-gold {
-    background: linear-gradient(135deg, #1a1d27 0%, #081D3A 100%);
+    background: linear-gradient(135deg, #FFFFFF 0%, #EAF3FF 100%);
     border: 1px solid #0B3D6E;
     border-radius: 12px;
     padding: 1.4rem 1.6rem;
 }
 .metric-label {
     font-size: 0.78rem;
-    color: #6b7080;
+    color: #718096;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 0.2rem;
@@ -1236,16 +1237,16 @@ html, body, [class*="css"] {
 .metric-value {
     font-family: 'DM Serif Display', serif;
     font-size: 1.6rem;
-    color: #f0ebe3;
+    color: #0B2E59;
     line-height: 1.1;
 }
 .metric-delta-pos { color: #00A651; font-size: 0.8rem; margin-top: 0.15rem; }
-.metric-delta-neg { color: #e05c5c; font-size: 0.8rem; margin-top: 0.15rem; }
+.metric-delta-neg { color: #E53E3E; font-size: 0.8rem; margin-top: 0.15rem; }
 
 /* ── Scenario cards ────────────────────────────────────────────────────── */
 .scenario-card {
-    background: #1a1d27;
-    border: 1px solid #2a2d3e;
+    background: #FFFFFF;
+    border: 1px solid #DCE6F2;
     border-radius: 10px;
     padding: 1rem 1.2rem;
     margin-bottom: 0.75rem;
@@ -1272,7 +1273,7 @@ html, body, [class*="css"] {
 }
 .warning-box {
     background: #1e1a0d;
-    border-left: 3px solid #f5a623;
+    border-left: 3px solid #F4B400;
     border-radius: 0 8px 8px 0;
     padding: 0.7rem 1rem;
     font-size: 0.88rem;
@@ -1280,8 +1281,8 @@ html, body, [class*="css"] {
     margin: 0.6rem 0;
 }
 .error-box {
-    background: #1e0d0d;
-    border-left: 3px solid #e05c5c;
+    background: #FDEAEA;
+    border-left: 3px solid #E53E3E;
     border-radius: 0 8px 8px 0;
     padding: 0.7rem 1rem;
     font-size: 0.88rem;
@@ -1301,8 +1302,8 @@ html, body, [class*="css"] {
 .pill-blue   { background: #061C36; color: #0072CE; border: 1px solid #0B4F8A; }
 .pill-green  { background: #061F16; color: #00A651; border: 1px solid #0A6E42; }
 .pill-gold   { background: #071B33; color: #0057B8; border: 1px solid #0B3D6E; }
-.pill-orange { background: #071B33; color: #f5a623; border: 1px solid #0B3D6E; }
-.pill-red    { background: #1e0d0d; color: #e05c5c; border: 1px solid #3a1010; }
+.pill-orange { background: #071B33; color: #F4B400; border: 1px solid #0B3D6E; }
+.pill-red    { background: #FDEAEA; color: #E53E3E; border: 1px solid #F5B5B5; }
 
 /* ── Sidebar ───────────────────────────────────────────────────────────── */
 .sidebar-title {
@@ -1312,14 +1313,14 @@ html, body, [class*="css"] {
     margin-bottom: 0.2rem;
 }
 section[data-testid="stSidebar"] {
-    background: #0c0e16;
-    border-right: 1px solid #1e2130;
+    background: #FFFFFF;
+    border-right: 1px solid #DCE6F2;
 }
 
 /* ── Buttons ───────────────────────────────────────────────────────────── */
 .stButton > button[kind="primary"] {
     background: linear-gradient(135deg, #0057B8, #00A651);
-    color: #0f1117;
+    color: #FFFFFF;
     font-weight: 700;
     border: none;
     border-radius: 8px;
@@ -1328,27 +1329,27 @@ section[data-testid="stSidebar"] {
 
 /* ── Inputs ────────────────────────────────────────────────────────────── */
 .stNumberInput input, .stTextInput input {
-    background: #1a1d27 !important;
-    border: 1px solid #2a2d3e !important;
-    color: #d0d3e0 !important;
+    background: #FFFFFF !important;
+    border: 1px solid #DCE6F2 !important;
+    color: #4A5568 !important;
     border-radius: 6px !important;
 }
 .stSelectbox > div > div {
-    background: #1a1d27 !important;
-    border: 1px solid #2a2d3e !important;
+    background: #FFFFFF !important;
+    border: 1px solid #DCE6F2 !important;
 }
 
 /* ── Tabs ──────────────────────────────────────────────────────────────── */
 .stTabs [data-baseweb="tab-list"] { gap: 0.5rem; }
 .stTabs [data-baseweb="tab"] {
-    background: #1a1d27;
+    background: #FFFFFF;
     border-radius: 8px 8px 0 0;
     padding: 0.4rem 0.9rem;
     font-size: 0.82rem;
-    color: #8a8fa8;
+    color: #718096;
 }
 .stTabs [aria-selected="true"] {
-    background: #252836 !important;
+    background: #EAF3FF !important;
     color: #0057B8 !important;
     border-bottom: 2px solid #0057B8 !important;
 }
@@ -1358,8 +1359,8 @@ section[data-testid="stSidebar"] {
 
 /* ── Expander ──────────────────────────────────────────────────────────── */
 .streamlit-expanderHeader {
-    background: #1a1d27 !important;
-    border: 1px solid #2a2d3e !important;
+    background: #FFFFFF !important;
+    border: 1px solid #DCE6F2 !important;
     border-radius: 8px !important;
 }
 </style>
@@ -1391,21 +1392,21 @@ def card_metric(label, value, delta=None, delta_pos=True):
 def dark_plotly(fig, height=350):
     fig.update_layout(
         height=height,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor ="#14161f",
-        font=dict(color="#a0a5b8", family="DM Sans"),
-        xaxis=dict(gridcolor="#1e2130", linecolor="#2a2d3e"),
-        yaxis=dict(gridcolor="#1e2130", linecolor="#2a2d3e"),
-        legend=dict(bgcolor="rgba(0,0,0,0)"),
+        paper_bgcolor="rgba(255,255,255,0)",
+        plot_bgcolor ="#FFFFFF",
+        font=dict(color="#4A5568", family="DM Sans"),
+        xaxis=dict(gridcolor="#DCE6F2", linecolor="#DCE6F2"),
+        yaxis=dict(gridcolor="#DCE6F2", linecolor="#DCE6F2"),
+        legend=dict(bgcolor="rgba(255,255,255,0)"),
         margin=dict(l=10, r=10, t=40, b=10),
     )
     return fig
 
 GOLD   = "#0057B8"
 GREEN  = "#00A651"
-RED    = "#e05c5c"
+RED    = "#E53E3E"
 BLUE   = "#0072CE"
-ORANGE = "#f5a623"
+ORANGE = "#F4B400"
 
 # ============================================================================
 # SECTION: RISK PROFILING
@@ -1431,10 +1432,10 @@ def section_risk_profiling():
 
     st.markdown(f"""
     <div class="card-gold" style="text-align:center; margin-top:1rem">
-        <div style="font-size:0.8rem; color:#8a8fa8; letter-spacing:1px; text-transform:uppercase">Your Risk Profile</div>
+        <div style="font-size:0.8rem; color:#718096; letter-spacing:1px; text-transform:uppercase">Your Risk Profile</div>
         <div style="font-family:'DM Serif Display',serif; font-size:2.5rem; color:{col}; margin:0.25rem 0">{risk_level.title()}</div>
-        <div style="color:#a0a5b8; font-size:0.9rem">{description}</div>
-        <div style="color:#6b7080; font-size:0.8rem; margin-top:0.5rem">Score: {total_score}/{len(RISK_QUESTIONS)*4}</div>
+        <div style="color:#4A5568; font-size:0.9rem">{description}</div>
+        <div style="color:#718096; font-size:0.8rem; margin-top:0.5rem">Score: {total_score}/{len(RISK_QUESTIONS)*4}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1860,12 +1861,12 @@ def display_health_score(h: Dict):
             value=score,
             number={"suffix": "/100", "font": {"size": 36, "color": col}},
             gauge={
-                "axis": {"range": [0, 100], "tickcolor": "#6b7080"},
+                "axis": {"range": [0, 100], "tickcolor": "#718096"},
                 "bar": {"color": col, "thickness": 0.3},
-                "bgcolor": "#1a1d27",
+                "bgcolor": "#FFFFFF",
                 "borderwidth": 0,
                 "steps": [
-                    {"range": [0,  50], "color": "#1e1217"},
+                    {"range": [0,  50], "color": "#FDEAEA"},
                     {"range": [50, 65], "color": "#071F1A"},
                     {"range": [65, 80], "color": "#061F16"},
                     {"range": [80,100], "color": "#061F16"},
@@ -1874,12 +1875,12 @@ def display_health_score(h: Dict):
             },
         ))
         fig.update_layout(
-            height=230, paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#a0a5b8"), margin=dict(l=10, r=10, t=10, b=10),
+            height=230, paper_bgcolor="rgba(255,255,255,0)",
+            font=dict(color="#4A5568"), margin=dict(l=10, r=10, t=10, b=10),
         )
         st.plotly_chart(fig, use_container_width=True, key="health_score_gauge")
         st.markdown(f'<div style="text-align:center; font-family:\'DM Serif Display\',serif; font-size:1.4rem; color:{col}">{cat}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div style="text-align:center; color:#8a8fa8; font-size:0.85rem; margin-top:0.3rem">{h["description"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align:center; color:#718096; font-size:0.85rem; margin-top:0.3rem">{h["description"]}</div>', unsafe_allow_html=True)
 
     with c2:
         st.markdown("**Component Breakdown**")
@@ -1889,14 +1890,14 @@ def display_health_score(h: Dict):
             bar_col = GREEN if v["score"] >= 70 else (ORANGE if v["score"] >= 45 else RED)
             st.markdown(f"""
             <div style="margin-bottom:0.5rem">
-                <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:#a0a5b8; margin-bottom:2px">
-                    <span>{label} <span style="color:#6b7080">(wt {v['weight']}%)</span></span>
+                <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:#4A5568; margin-bottom:2px">
+                    <span>{label} <span style="color:#718096">(wt {v['weight']}%)</span></span>
                     <span style="color:{bar_col}; font-weight:600">{v['score']:.0f}</span>
                 </div>
-                <div style="background:#1e2130; border-radius:4px; height:6px">
+                <div style="background:#DCE6F2; border-radius:4px; height:6px">
                     <div style="background:{bar_col}; width:{v['score']}%; height:6px; border-radius:4px; transition:width 0.5s"></div>
                 </div>
-                <div style="font-size:0.72rem; color:#6b7080; margin-top:2px">{v['label']}</div>
+                <div style="font-size:0.72rem; color:#718096; margin-top:2px">{v['label']}</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -1995,7 +1996,7 @@ def display_rebalancing(rebal: Dict, risk_level: str):
                 <div class="card" style="border-left:3px solid {action_col}; margin-bottom:0.5rem">
                     <span style="color:{action_col}; font-weight:700">{a['action']}</span>
                     <strong> {a['asset']}</strong> — {fmt(a['amount'])}<br>
-                    <span style="color:#6b7080; font-size:0.8rem">{a['current_pct']}% → {a['target_pct']}% (drift: {a['drift_pct']}%)</span>
+                    <span style="color:#718096; font-size:0.8rem">{a['current_pct']}% → {a['target_pct']}% (drift: {a['drift_pct']}%)</span>
                 </div>
                 """, unsafe_allow_html=True)
         else:
@@ -2015,8 +2016,8 @@ def display_scenarios(scenarios: Dict, personal_info: Dict):
             pill_cls = "green" if col==GREEN else ("orange" if col==ORANGE else "red")
             st.markdown(f"""
             <div class="scenario-card">
-                <div style="font-weight:600; color:#f0ebe3">{s['scenario']}</div>
-                <div style="color:#a0a5b8; font-size:0.85rem; margin:0.3rem 0">
+                <div style="font-weight:600; color:#0B2E59">{s['scenario']}</div>
+                <div style="color:#4A5568; font-size:0.85rem; margin:0.3rem 0">
                     Income lost: {fmt(s['income_lost'])} | Emergency covers {s['emergency_covers']} months
                     | Shortfall: {fmt(s['fund_shortfall'])}
                 </div>
@@ -2030,8 +2031,8 @@ def display_scenarios(scenarios: Dict, personal_info: Dict):
             ok = s["gap_to_target"] == 0
             st.markdown(f"""
             <div class="scenario-card">
-                <div style="font-weight:600; color:#f0ebe3">{s['scenario']}</div>
-                <div style="color:#a0a5b8; font-size:0.85rem; margin:0.3rem 0">
+                <div style="font-weight:600; color:#0B2E59">{s['scenario']}</div>
+                <div style="color:#4A5568; font-size:0.85rem; margin:0.3rem 0">
                     Portfolio drops to {fmt(s['portfolio_after'])} | Recovers to {fmt(s['projected_recovery'])} | Gap: {fmt(s['gap_to_target'])}
                 </div>
                 <span class="pill pill-{'green' if ok else 'orange'}">{s['verdict']}</span>
@@ -2042,11 +2043,11 @@ def display_scenarios(scenarios: Dict, personal_info: Dict):
         s = scenarios["early_ret_55"]
         st.markdown(f"""
         <div class="scenario-card">
-            <div style="font-weight:600; color:#f0ebe3">{s['scenario']}</div>
-            <div style="color:#a0a5b8; font-size:0.85rem; margin:0.4rem 0">
+            <div style="font-weight:600; color:#0B2E59">{s['scenario']}</div>
+            <div style="color:#4A5568; font-size:0.85rem; margin:0.4rem 0">
                 Corpus needed: {fmt(s['corpus_needed'])} | Projected: {fmt(s['projected_corpus'])} | Gap: {fmt(s['gap'])}
             </div>
-            {f'<div style="color:#e05c5c;font-size:0.85rem">Extra monthly required: {fmt(s["extra_monthly_needed"])}</div>' if not s['feasible'] else ''}
+            {f'<div style="color:#E53E3E;font-size:0.85rem">Extra monthly required: {fmt(s["extra_monthly_needed"])}</div>' if not s['feasible'] else ''}
             <span class="pill pill-{'green' if s['feasible'] else 'red'}">{'Feasible' if s['feasible'] else 'Needs more savings'}</span>
         </div>
         """, unsafe_allow_html=True)
@@ -2065,12 +2066,12 @@ def display_scenarios(scenarios: Dict, personal_info: Dict):
         )
         st.markdown(f"""
         <div class="scenario-card">
-            <div style="font-weight:600; color:#f0ebe3">Property: {fmt(s['property_value'])}</div>
-            <div style="color:#a0a5b8; font-size:0.85rem; margin:0.4rem 0">
+            <div style="font-weight:600; color:#0B2E59">Property: {fmt(s['property_value'])}</div>
+            <div style="color:#4A5568; font-size:0.85rem; margin:0.4rem 0">
                 Down payment needed: {fmt(s['down_payment'])} | EMI: {fmt(s['estimated_emi'])}/mo
                 | EMI/Income: {s['emi_to_income_pct']:.1f}%
             </div>
-            {f'<div style="color:#e05c5c;font-size:0.85rem">Still need to save: {fmt(s["savings_needed"])}</div>' if s['savings_needed']>0 else ''}
+            {f'<div style="color:#E53E3E;font-size:0.85rem">Still need to save: {fmt(s["savings_needed"])}</div>' if s['savings_needed']>0 else ''}
             <span class="pill pill-{'green' if s['affordable'] else 'red'}">{'Affordable' if s['affordable'] else 'Stretch (EMI > 40% income)'}</span>
         </div>
         """, unsafe_allow_html=True)
@@ -2136,11 +2137,11 @@ def display_full_results(ar: Dict, pi: Dict):
                 gauge={
                     "axis":{"range":[0,150]},
                     "bar":{"color":e["color"]},
-                    "steps":[{"range":[0,50],"color":"#1e1217"},{"range":[50,100],"color":"#1a1d27"}],
+                    "steps":[{"range":[0,50],"color":"#FDEAEA"},{"range":[50,100],"color":"#FFFFFF"}],
                     "threshold":{"line":{"color":GOLD,"width":3},"value":100},
                 },
             ))
-            fig.update_layout(height=250, paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#a0a5b8"), margin=dict(l=0,r=0,t=10,b=0))
+            fig.update_layout(height=250, paper_bgcolor="rgba(255,255,255,0)", font=dict(color="#4A5568"), margin=dict(l=0,r=0,t=10,b=0))
             st.plotly_chart(fig, use_container_width=True, key="emergency_fund_gauge")
         with c2:
             st.markdown(card_metric("Current Fund",  fmt(e["current_fund"])),   unsafe_allow_html=True)
@@ -2160,11 +2161,11 @@ def display_full_results(ar: Dict, pi: Dict):
                 gauge={
                     "axis":{"range":[0,100]},
                     "bar":{"color":ret["color"]},
-                    "steps":[{"range":[0,40],"color":"#1e1217"},{"range":[40,70],"color":"#071F1A"},{"range":[70,100],"color":"#061F16"}],
+                    "steps":[{"range":[0,40],"color":"#FDEAEA"},{"range":[40,70],"color":"#071F1A"},{"range":[70,100],"color":"#061F16"}],
                     "threshold":{"line":{"color":GOLD,"width":3},"value":70},
                 },
             ))
-            fig.update_layout(height=250, paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#a0a5b8"), margin=dict(l=0,r=0,t=10,b=0))
+            fig.update_layout(height=250, paper_bgcolor="rgba(255,255,255,0)", font=dict(color="#4A5568"), margin=dict(l=0,r=0,t=10,b=0))
             st.plotly_chart(fig, use_container_width=True, key="retirement_readiness_gauge")
         with c2:
             st.markdown(card_metric("Years to Retire",    f"{ret['years_to_retirement']}"),          unsafe_allow_html=True)
@@ -2185,11 +2186,11 @@ def display_full_results(ar: Dict, pi: Dict):
                 gauge={
                     "axis":{"range":[0,100]},
                     "bar":{"color":d["color"]},
-                    "steps":[{"range":[0,20],"color":"#061F16"},{"range":[20,40],"color":"#071F1A"},{"range":[40,60],"color":"#1e1714"},{"range":[60,100],"color":"#1e1217"}],
+                    "steps":[{"range":[0,20],"color":"#061F16"},{"range":[20,40],"color":"#071F1A"},{"range":[40,60],"color":"#1e1714"},{"range":[60,100],"color":"#FDEAEA"}],
                     "threshold":{"line":{"color":GOLD,"width":3},"value":40},
                 },
             ))
-            fig.update_layout(height=250, paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#a0a5b8"), margin=dict(l=0,r=0,t=10,b=0))
+            fig.update_layout(height=250, paper_bgcolor="rgba(255,255,255,0)", font=dict(color="#4A5568"), margin=dict(l=0,r=0,t=10,b=0))
             st.plotly_chart(fig, use_container_width=True, key="debt_to_income_gauge")
         with c2:
             st.markdown(card_metric("Total Debt",          fmt(d["total_debt"])),   unsafe_allow_html=True)
@@ -2531,7 +2532,7 @@ def main():
         fname = f"{name}_session_{datetime.now():%Y%m%d_%H%M%S}.json"
         st.markdown(
             f'<a href="data:application/json;base64,{b64}" download="{fname}" '
-            f'style="background:{GOLD};color:#0f1117;padding:10px 20px;border-radius:6px;font-weight:700;text-decoration:none">⬇ Download Session File</a>',
+            f'style="background:{GOLD};color:#FFFFFF;padding:10px 20px;border-radius:6px;font-weight:700;text-decoration:none">⬇ Download Session File</a>',
             unsafe_allow_html=True
         )
         if st.button("← Back"): st.session_state.show_save = False; st.rerun()
@@ -2665,7 +2666,7 @@ def main():
                                 fname = f"{name}_Financial Kundli_{datetime.now():%Y%m%d}.pdf"
                                 st.markdown(
                                     f'<a href="data:application/pdf;base64,{b64}" download="{fname}" '
-                                    f'style="background:{GREEN};color:#0f1117;padding:10px 20px;border-radius:6px;font-weight:700;text-decoration:none">⬇ Download PDF</a>',
+                                    f'style="background:{GREEN};color:#FFFFFF;padding:10px 20px;border-radius:6px;font-weight:700;text-decoration:none">⬇ Download PDF</a>',
                                     unsafe_allow_html=True
                                 )
                             except Exception as e:
