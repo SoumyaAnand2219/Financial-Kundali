@@ -5,3 +5,4 @@ plotly
 reportlab
 Pillow
 Scipy
+reportlab
