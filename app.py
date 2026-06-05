@@ -1559,7 +1559,7 @@ def section_income_expenses():
         fig.update_traces(textposition="inside", textinfo="percent+label")
         fig = dark_plotly(fig, 280)
         fig.update_layout(title="Expense Breakdown", showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="expense_breakdown_pie_chart")
 
     st.session_state.update(
         inc_sal=salary, inc_biz=business, inc_ren=rental, inc_oth=other_inc,
@@ -1616,7 +1616,7 @@ def section_assets():
         ))
         alloc_fig = dark_plotly(alloc_fig, 220)
         alloc_fig.update_layout(title="Current Investment Allocation", showlegend=False)
-        st.plotly_chart(alloc_fig, use_container_width=True)
+        st.plotly_chart(alloc_fig, use_container_width=True, key="asset_allocation_bar_chart")
 
     st.session_state.update(
         a_cash=cash_bank, a_re=real_estate, a_eq=equity, a_db=debt, a_gd=gold,
@@ -1877,7 +1877,7 @@ def display_health_score(h: Dict):
             height=230, paper_bgcolor="rgba(0,0,0,0)",
             font=dict(color="#a0a5b8"), margin=dict(l=10, r=10, t=10, b=10),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="health_score_gauge")
         st.markdown(f'<div style="text-align:center; font-family:\'DM Serif Display\',serif; font-size:1.4rem; color:{col}">{cat}</div>', unsafe_allow_html=True)
         st.markdown(f'<div style="text-align:center; color:#8a8fa8; font-size:0.85rem; margin-top:0.3rem">{h["description"]}</div>', unsafe_allow_html=True)
 
@@ -1952,7 +1952,7 @@ def display_monte_carlo(mc: Dict, ret: Dict):
                               annotation_text=f"Target {fmt(r['required_corpus'])}", annotation_font_color=ORANGE)
             fig = dark_plotly(fig, 380)
             fig.update_layout(title="Retirement Corpus — 1,000 Monte Carlo Paths", xaxis_title="Years from Now", yaxis_title="Portfolio Value (₹)")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="monte_carlo_paths_chart")
 
     if mc.get("goals"):
         st.markdown("**Goal Achievement Probabilities**")
@@ -1984,7 +1984,7 @@ def display_rebalancing(rebal: Dict, risk_level: str):
         fig.add_trace(go.Bar(name="Target",  x=cats, y=tgt_v, marker_color=GOLD))
         fig = dark_plotly(fig, 280)
         fig.update_layout(title=f"Current vs Target ({risk_level.title()} Profile)", barmode="group", yaxis_ticksuffix="%")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="rebalancing_current_vs_target_chart")
 
     with c2:
         if rebal["needs_rebalancing"]:
@@ -2141,7 +2141,7 @@ def display_full_results(ar: Dict, pi: Dict):
                 },
             ))
             fig.update_layout(height=250, paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#a0a5b8"), margin=dict(l=0,r=0,t=10,b=0))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="emergency_fund_gauge")
         with c2:
             st.markdown(card_metric("Current Fund",  fmt(e["current_fund"])),   unsafe_allow_html=True)
             st.markdown(card_metric("Required Fund", fmt(e["required_fund"])),  unsafe_allow_html=True)
@@ -2165,7 +2165,7 @@ def display_full_results(ar: Dict, pi: Dict):
                 },
             ))
             fig.update_layout(height=250, paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#a0a5b8"), margin=dict(l=0,r=0,t=10,b=0))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="retirement_readiness_gauge")
         with c2:
             st.markdown(card_metric("Years to Retire",    f"{ret['years_to_retirement']}"),          unsafe_allow_html=True)
             st.markdown(card_metric("Corpus Needed",      fmt(ret["corpus_needed"])),                 unsafe_allow_html=True)
@@ -2190,7 +2190,7 @@ def display_full_results(ar: Dict, pi: Dict):
                 },
             ))
             fig.update_layout(height=250, paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#a0a5b8"), margin=dict(l=0,r=0,t=10,b=0))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="debt_to_income_gauge")
         with c2:
             st.markdown(card_metric("Total Debt",          fmt(d["total_debt"])),   unsafe_allow_html=True)
             st.markdown(card_metric("Monthly EMI",         fmt(d["monthly_emi"])),  unsafe_allow_html=True)
@@ -2231,107 +2231,183 @@ def display_full_results(ar: Dict, pi: Dict):
 # PDF REPORT
 # ============================================================================
 
+
+def _pdf_text(value) -> str:
+    """Return PDF-safe text for ReportLab built-in fonts."""
+    return str(value).replace("₹", "Rs.").replace("—", "-").replace("–", "-")
+
+def _pdf_paragraph(value, style):
+    return Paragraph(_pdf_text(value), style)
+
+def _safe_hex_color(value: str, fallback: str = "#c9a84c"):
+    try:
+        return colors.HexColor(value)
+    except Exception:
+        return colors.HexColor(fallback)
+
 def generate_pdf(personal_info: Dict, ar: Dict) -> bytes:
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=letter, rightMargin=60, leftMargin=60, topMargin=60, bottomMargin=60)
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=letter,
+        rightMargin=60,
+        leftMargin=60,
+        topMargin=60,
+        bottomMargin=60,
+    )
     styles = getSampleStyleSheet()
-    story  = []
+    story = []
 
     GOLD_PDF = colors.HexColor("#c9a84c")
     DARK_PDF = colors.HexColor("#2c3e50")
 
-    title_style = ParagraphStyle("T", parent=styles["Heading1"], fontSize=22,
-                                  textColor=DARK_PDF, alignment=TA_CENTER, spaceAfter=6)
-    h2_style    = ParagraphStyle("H2", parent=styles["Heading2"], fontSize=14,
-                                  textColor=DARK_PDF, spaceAfter=6, spaceBefore=14,
-                                  borderPad=4, leftIndent=10)
-    body_style  = ParagraphStyle("B", parent=styles["Normal"], fontSize=10, spaceAfter=4)
-    note_style  = ParagraphStyle("N", parent=styles["Normal"], fontSize=8,
-                                  textColor=colors.grey, spaceAfter=3, alignment=TA_JUSTIFY)
+    title_style = ParagraphStyle(
+        "T",
+        parent=styles["Heading1"],
+        fontSize=22,
+        textColor=DARK_PDF,
+        alignment=TA_CENTER,
+        spaceAfter=6,
+    )
+    h2_style = ParagraphStyle(
+        "H2",
+        parent=styles["Heading2"],
+        fontSize=14,
+        textColor=DARK_PDF,
+        spaceAfter=6,
+        spaceBefore=14,
+    )
+    body_style = ParagraphStyle(
+        "B",
+        parent=styles["Normal"],
+        fontSize=10,
+        spaceAfter=4,
+    )
+    bold_style = ParagraphStyle(
+        "BOLD",
+        parent=styles["Normal"],
+        fontSize=10,
+        spaceAfter=2,
+        fontName="Helvetica-Bold",
+    )
+    note_style = ParagraphStyle(
+        "N",
+        parent=styles["Normal"],
+        fontSize=8,
+        textColor=colors.grey,
+        spaceAfter=3,
+        alignment=TA_JUSTIFY,
+    )
 
-    story.append(Paragraph("WealthOS — Financial Planning Report", title_style))
-    story.append(Paragraph(f"Client: {personal_info.get('name','N/A')} | Age: {personal_info.get('age')} | Date: {datetime.now():%B %d, %Y}", body_style))
+    story.append(_pdf_paragraph("WealthOS - Financial Planning Report", title_style))
+    story.append(_pdf_paragraph(
+        f"Client: {personal_info.get('name', 'N/A')} | "
+        f"Age: {personal_info.get('age', 'N/A')} | "
+        f"Date: {datetime.now():%B %d, %Y}",
+        body_style,
+    ))
     story.append(Spacer(1, 16))
 
     h = ar["health_score"]
-    story.append(Paragraph("Financial Health Score", h2_style))
-    score_color = colors.HexColor(h["color"])
-    tbl = Table([["Score", "Category", "Description"],
-                 [f"{h['total_score']}/100", h["category"], h["description"]]], colWidths=[80, 80, 280])
-    tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#34495e")),
-        ("TEXTCOLOR",  (0,0), (-1,0), colors.white),
-        ("FONTNAME",   (0,0), (-1,0), "Helvetica-Bold"),
-        ("GRID",       (0,0), (-1,-1), 0.5, colors.grey),
-        ("BACKGROUND", (0,1), (-1,-1), colors.whitesmoke),
-        ("TEXTCOLOR",  (0,1), (0,1),  score_color),
-        ("FONTNAME",   (0,1), (0,1),  "Helvetica-Bold"),
-        ("FONTSIZE",   (0,1), (0,1),  16),
-        ("ALIGN",      (0,0), (-1,-1), "CENTER"),
-        ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
-    ]))
-    story.append(tbl); story.append(Spacer(1, 12))
+    story.append(_pdf_paragraph("Financial Health Score", h2_style))
+    score_color = _safe_hex_color(h.get("color", "#c9a84c"))
 
-    story.append(Paragraph("Key Metrics", h2_style))
-    rows = [["Area", "Value", "Status"],
-        ["Emergency Fund",     f"{ar['emergency']['adequacy_percentage']:.1f}%",    ar["emergency"]["status"]],
-        ["Retirement Readiness",f"{ar['retirement']['readiness_percentage']:.1f}%", ar["retirement"]["status"]],
-        ["Debt-to-Income",      f"{ar['debt']['debt_to_income_ratio']:.1f}%",       ar["debt"]["status"]],
-        ["Savings Rate",        f"{ar['summary']['savings_rate']:.1f}%",            "Good" if ar["summary"]["savings_rate"] >= 20 else "Improve"],
-        ["Net Worth",           f"₹{ar['summary']['net_worth']:,.0f}",              "Positive" if ar["summary"]["net_worth"] > 0 else "Negative"],
-        ["Better Tax Regime",   ar["tax"]["better_regime"],                          f"Save ₹{ar['tax']['savings_by_switching']:,.0f}"],
+    tbl = Table(
+        [["Score", "Category", "Description"],
+         [f"{h['total_score']}/100", h["category"], _pdf_text(h["description"])]],
+        colWidths=[80, 80, 280],
+    )
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#34495e")),
+        ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
+        ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID",       (0, 0), (-1, -1), 0.5, colors.grey),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
+        ("TEXTCOLOR",  (0, 1), (0, 1), score_color),
+        ("FONTNAME",   (0, 1), (0, 1), "Helvetica-Bold"),
+        ("FONTSIZE",   (0, 1), (0, 1), 16),
+        ("ALIGN",      (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN",     (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+    story.append(tbl)
+    story.append(Spacer(1, 12))
+
+    story.append(_pdf_paragraph("Key Metrics", h2_style))
+    rows = [
+        ["Area", "Value", "Status"],
+        ["Emergency Fund", f"{ar['emergency']['adequacy_percentage']:.1f}%", ar["emergency"]["status"]],
+        ["Retirement Readiness", f"{ar['retirement']['readiness_percentage']:.1f}%", ar["retirement"]["status"]],
+        ["Debt-to-Income", f"{ar['debt']['debt_to_income_ratio']:.1f}%", ar["debt"]["status"]],
+        ["Savings Rate", f"{ar['summary']['savings_rate']:.1f}%", "Good" if ar["summary"]["savings_rate"] >= 20 else "Needs Improvement"],
+        ["Net Worth", f"Rs.{ar['summary']['net_worth']:,.0f}", "Positive" if ar["summary"]["net_worth"] > 0 else "Negative"],
+        ["Better Tax Regime", ar["tax"]["better_regime"], f"Save Rs.{ar['tax']['savings_by_switching']:,.0f}"],
     ]
     tbl2 = Table(rows, colWidths=[150, 120, 170])
     tbl2.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#34495e")),
-        ("TEXTCOLOR",  (0,0), (-1,0), colors.white),
-        ("FONTNAME",   (0,0), (-1,0), "Helvetica-Bold"),
-        ("GRID",       (0,0), (-1,-1), 0.5, colors.lightgrey),
-        ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f8f9fa")]),
-        ("ALIGN",      (1,0), (-1,-1), "CENTER"),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#34495e")),
+        ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
+        ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID",       (0, 0), (-1, -1), 0.5, colors.lightgrey),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
+        ("ALIGN",      (1, 0), (-1, -1), "CENTER"),
     ]))
-    story.append(tbl2); story.append(Spacer(1, 12))
+    story.append(tbl2)
+    story.append(Spacer(1, 12))
 
-    story.append(Paragraph("Retirement Planning", h2_style))
+    story.append(_pdf_paragraph("Retirement Planning", h2_style))
     ret = ar["retirement"]
-    story.append(Paragraph(f"Corpus Needed (PV-of-Annuity method): ₹{ret['corpus_needed']:,.0f}", body_style))
-    story.append(Paragraph(f"Projected Corpus: ₹{ret['projected_corpus']:,.0f}", body_style))
-    story.append(Paragraph(f"Monte Carlo Success Probability: {ar['monte_carlo']['retirement'].get('success_probability',0):.1f}%", body_style))
+    story.append(_pdf_paragraph(f"Years to Retirement: {ret['years_to_retirement']} | Years in Retirement: {ret['years_in_retirement']}", body_style))
+    story.append(_pdf_paragraph(f"Corpus Needed: Rs.{ret['corpus_needed']:,.0f}", body_style))
+    story.append(_pdf_paragraph(f"Projected Corpus: Rs.{ret['projected_corpus']:,.0f}", body_style))
+    story.append(_pdf_paragraph(f"Monte Carlo Success Probability: {ar['monte_carlo']['retirement'].get('success_probability', 0):.1f}%", body_style))
+    if ret.get("additional_monthly_saving_needed", 0) > 0:
+        story.append(_pdf_paragraph(f"Extra Monthly SIP Needed: Rs.{ret['additional_monthly_saving_needed']:,.0f}", body_style))
     story.append(Spacer(1, 8))
 
     if ar["goals"]["total_goals"] > 0:
-        story.append(Paragraph("Financial Goals", h2_style))
-        goal_rows = [["Goal", "Target (Today)", "Future Value", "Inflation", "Monthly SIP", "Progress"]]
+        story.append(_pdf_paragraph("Financial Goals", h2_style))
+        goal_rows = [["Goal", "Target Today", "Future Value", "Inflation", "Monthly SIP", "Progress"]]
         for g in ar["goals"]["goals_details"]:
-            goal_rows.append([g["name"], f"₹{g['target_amount_pv']:,.0f}",
-                               f"₹{g['target_amount_fv']:,.0f}", f"{g['inflation_used']}%",
-                               f"₹{g['monthly_saving_needed']:,.0f}", f"{g['progress_percentage']:.0f}%"])
+            goal_rows.append([
+                _pdf_text(g["name"]),
+                f"Rs.{g['target_amount_pv']:,.0f}",
+                f"Rs.{g['target_amount_fv']:,.0f}",
+                f"{g['inflation_used']}%",
+                f"Rs.{g['monthly_saving_needed']:,.0f}",
+                f"{g['progress_percentage']:.0f}%",
+            ])
         gtbl = Table(goal_rows, colWidths=[100, 80, 80, 55, 80, 55])
         gtbl.setStyle(TableStyle([
-            ("BACKGROUND", (0,0),(-1,0), colors.HexColor("#34495e")),
-            ("TEXTCOLOR",  (0,0),(-1,0), colors.white),
-            ("FONTNAME",   (0,0),(-1,0), "Helvetica-Bold"),
-            ("GRID",       (0,0),(-1,-1), 0.4, colors.lightgrey),
-            ("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white, colors.HexColor("#f8f9fa")]),
-            ("FONTSIZE",   (0,0),(-1,-1), 8),
-            ("ALIGN",      (1,0),(-1,-1), "CENTER"),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#34495e")),
+            ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
+            ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID",       (0, 0), (-1, -1), 0.4, colors.lightgrey),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
+            ("FONTSIZE",   (0, 0), (-1, -1), 8),
+            ("ALIGN",      (1, 0), (-1, -1), "CENTER"),
         ]))
-        story.append(gtbl); story.append(Spacer(1, 12))
+        story.append(gtbl)
+        story.append(Spacer(1, 12))
 
-    story.append(Paragraph("Priority Recommendations", h2_style))
-    for i, r in enumerate(ar["recommendations"][:6]):
-        story.append(Paragraph(f"{i+1}. [{r['priority'].upper()}] {r['title']}",
-                                ParagraphStyle("rt", fontSize=10, textColor=DARK_PDF, spaceAfter=2, fontName="Helvetica-Bold")))
-        story.append(Paragraph(r["description"], body_style))
-        story.append(Spacer(1, 4))
+    story.append(_pdf_paragraph("Priority Recommendations", h2_style))
+    recommendations = ar.get("recommendations", [])
+    if recommendations:
+        for i, r in enumerate(recommendations[:6]):
+            story.append(_pdf_paragraph(f"{i + 1}. [{r['priority'].upper()}] {r['title']}", bold_style))
+            story.append(_pdf_paragraph(r["description"], body_style))
+            story.append(Spacer(1, 4))
+    else:
+        story.append(_pdf_paragraph("No priority recommendations generated.", body_style))
 
     story.append(Spacer(1, 20))
-    story.append(Paragraph("Disclaimer", ParagraphStyle("DT", fontSize=9, textColor=colors.red, spaceAfter=3)))
-    story.append(Paragraph(
+    story.append(_pdf_paragraph("Disclaimer", ParagraphStyle("DT", parent=styles["Normal"], fontSize=9, textColor=colors.red, spaceAfter=3)))
+    story.append(_pdf_paragraph(
         "This report is generated by an automated financial planning tool and is for informational purposes only. "
         "It does not constitute registered financial advice. All projections are estimates based on assumptions "
-        "and may not reflect actual future outcomes. Please consult a SEBI-registered investment advisor before "
-        "making any investment or tax decisions.", note_style))
+        "and may not reflect actual future outcomes. Please consult a qualified professional before making any "
+        "investment or tax decisions.",
+        note_style,
+    ))
 
     doc.build(story)
     buf.seek(0)
@@ -2593,7 +2669,9 @@ def main():
                                     unsafe_allow_html=True
                                 )
                             except Exception as e:
-                                st.error(f"PDF error: {e}")
+                                import traceback
+                                st.error(f"PDF generation failed: {e}")
+                                st.code(traceback.format_exc())
                 with c2:
                     if st.button("📊 Export CSV", use_container_width=True, type="secondary"):
                         ar  = st.session_state.analysis_results
