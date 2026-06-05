@@ -2102,7 +2102,6 @@ def display_recommendations(recs: List[Dict]):
 
 
 def display_full_results(ar: Dict, pi: Dict):
-    display_health_score(ar["health_score"])
     st.markdown("---")
 
     s = ar["summary"]
