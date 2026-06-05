@@ -2552,7 +2552,7 @@ def main():
         return
 
     # ---- HERO ----
-    st.markdown('<div class="hero-title">FINANCIAL KUNDLI</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-title"> FINANCIAL KUNDLI</div>', unsafe_allow_html=True)
     st.markdown('<div class="hero-sub">Conviction in every strategy.</div>', unsafe_allow_html=True)
 
     # ---- NAV ----
