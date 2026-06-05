@@ -2551,8 +2551,8 @@ def main():
         return
 
     # ---- HERO ----
-    st.markdown('<div class="hero-title">💎 WealthOS</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hero-sub">Professional-grade financial planning — corrected, comprehensive, and built for India.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-title">OMEGA</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-sub">Built to Last.</div>', unsafe_allow_html=True)
 
     # ---- NAV ----
     c1, c2, c3 = st.columns([1, 6, 1])
