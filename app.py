@@ -1215,7 +1215,19 @@ try:
 except ImportError:
     _UI_AVAILABLE = False
 
-GOLD, GREEN, RED, BLUE, ORANGE = "#0057B8", "#1D8A4E", "#C94F4F", "#0072CE", "#B7791F"
+# ── Design tokens: "financial almanac" — ink indigo + gold on warm ivory ──
+INK    = "#16263D"   # deep indigo ink (display type, headers)
+ROYAL  = "#0057B8"   # brand royal blue (interactive, series 1)
+GOLD   = "#C29A3B"   # burnished gold (accents, targets, medians)
+GREEN  = "#1D8A4E"   # positive
+RED    = "#C94F4F"   # negative
+BLUE   = "#0072CE"   # series 2
+ORANGE = "#B7791F"   # caution / annotations
+IVORY  = "#FBF9F3"   # paper
+HAIR   = "#E7E1D2"   # hairline rules on ivory
+MUTED  = "#6B7688"   # secondary text
+PIE_COLORS = ["#16263D", "#0057B8", "#C29A3B", "#1D8A4E", "#7A8CB0",
+              "#C97B3D", "#8A5A83", "#4E7F8C"]
 
 THEME_CSS = """
 <style>
